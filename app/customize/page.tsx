@@ -8,7 +8,7 @@ type OrderState = {
   step: number; maxStepReached: number;
   occasion: string | null;
   tierCount: 1 | 2 | 3; tiers: Tier[];
-  size: "small" | "medium" | "large" | null;
+  size: string | null;
   filling: string | null; fillingOther: string;
   colors: string[]; colorOther: string;
   message: string; notes: string;
