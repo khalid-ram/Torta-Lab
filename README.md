@@ -1,2 +1,0 @@
-# Torta-Lab
-Torta Lab
