@@ -146,10 +146,11 @@ export default function CustomizePage() {
       <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-3xl mx-auto flex items-center justify-between px-6 py-4">
           <a href="/" className="text-sm font-semibold text-[#633B2C]">{lang === "ar" ? "→ رجوع للرئيسية" : "← Back to Home"}</a>
-          <span className="text-xl font-serif font-bold">TORTA LAB</span>
-          <button onClick={() => setLang(lang === "en" ? "ar" : "en")} className="text-sm font-semibold border border-[#E8D8CC] rounded-full px-3 py-1.5">
-            {lang === "en" ? "EN | AR" : "AR | EN"}
-          </button>
+          <span className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "Torta Lab"}</span>
+          <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
+            <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
+            <button onClick={() => setLang("ar")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "ar" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>AR</button>
+          </div>
         </div>
       </nav>
 
@@ -264,7 +265,7 @@ export default function CustomizePage() {
           )}
 
           {state.step === 5 && (
-            <Step title={lang === "ar" ? "عندك شكل معين في بالك؟" : "Have a design in mind?"}>
+            <Step title={`${lang === "ar" ? "عندك شكل معين في بالك؟" : "Have a design in mind?"} (${lang === "ar" ? "اختياري" : "Optional"})`}>
               <p className="text-sm text-[#79665E] mb-4">
                 {lang === "ar" ? "ارفع صورة مرجعية للشكل أو الديكور اللي حابب التورتة تكون قريبة منه." : "Upload a reference photo and show us the decoration or style you're looking for."}
               </p>

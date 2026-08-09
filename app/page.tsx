@@ -69,9 +69,10 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <a href="/customize" className="hidden md:inline-block bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.cta}</a>
-            <button onClick={() => setLang(lang === "en" ? "ar" : "en")} className="text-sm font-semibold border border-[#E8D8CC] rounded-full px-3 py-1.5">
-              {lang === "en" ? "EN | AR" : "AR | EN"}
-            </button>
+            <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
+              <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
+              <button onClick={() => setLang("ar")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "ar" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>AR</button>
+            </div>
           </div>
         </div>
       </nav>
@@ -92,9 +93,8 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <div className="rounded-3xl bg-[#F8EEE5] aspect-square flex items-center justify-center text-[#B8945F]">
-          {/* Replace with real hero photography */}
-          <span className="text-sm">Hero image placeholder</span>
+        <div className="rounded-3xl bg-[#F8EEE5] aspect-square overflow-hidden">
+          <img src="/assets/hero-cake.jpg" alt="" className="w-full h-full object-cover" />
         </div>
       </section>
 
