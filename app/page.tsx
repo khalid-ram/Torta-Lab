@@ -60,7 +60,7 @@ export default function Home() {
     <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
       <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <span className="text-2xl font-serif font-bold">TORTA LAB</span>
+          <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
           <div className="hidden md:flex gap-8 text-sm font-medium">
             <a href="#" className="hover:text-[#D96C7C]">{t.nav.home}</a>
             <a href="#cakes" className="hover:text-[#D96C7C]">{t.nav.cakes}</a>
@@ -78,23 +78,28 @@ export default function Home() {
       </nav>
 
       <section className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
-        <div>
-          <h1 className="text-3xl md:text-5xl font-serif font-bold leading-tight whitespace-nowrap md:whitespace-normal">{t.hero.title}</h1>
-          <div className="flex flex-wrap gap-4 mt-8">
+        <div className="text-center md:text-left">
+          <h1 className="text-3xl md:text-5xl font-serif font-bold leading-tight whitespace-normal">{t.hero.title}</h1>
+          <div className="flex flex-wrap justify-center gap-4 mt-8 md:justify-start">
             <a href="/customize" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">{t.hero.primary}</a>
             <a href="#cakes" className="border border-[#633B2C] text-[#633B2C] px-7 py-3 rounded-full font-semibold hover:bg-[#F8EEE5] transition">{t.hero.secondary}</a>
           </div>
-          <div className="flex flex-wrap gap-3 mt-8">
+          <div className="mt-8 flex flex-row items-center justify-center gap-2 overflow-x-auto pb-1 md:justify-start md:flex-wrap md:gap-3">
             {t.hero.trust.map((item) => (
-              <span key={item} className="flex items-center gap-2 bg-[#F3C7CC]/40 text-[#633B2C] text-sm font-medium px-4 py-2 rounded-full">
-                <span className="w-4 h-4 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-[10px]">✓</span>
-                {item}
+              <span key={item} className="flex shrink-0 items-center gap-1.5 text-[#633B2C] text-[12px] font-medium leading-none md:bg-[#F3C7CC]/40 md:px-4 md:py-2 md:rounded-full md:text-sm md:shrink">
+                <span className="w-3.5 h-3.5 shrink-0 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-[9px] md:w-4 md:h-4 md:text-[10px]">✓</span>
+                <span className="whitespace-nowrap">{item}</span>
               </span>
             ))}
           </div>
         </div>
-        <div className="rounded-3xl bg-[#F8EEE5] aspect-square overflow-hidden">
-          <img src="/assets/hero-cake.jpg" alt="" className="w-full h-full object-cover" />
+        <div className="rounded-3xl bg-[#F8EEE5] aspect-square overflow-hidden hidden md:block">
+          <picture>
+            {/* Desktop-only source: only requested on viewports >= 768px */}
+            <source media="(min-width:768px)" srcSet="/assets/hero-cake.jpg" />
+            {/* Mobile fallback is a tiny inline SVG placeholder to avoid downloading the large image */}
+            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'><rect width='600' height='600' fill='%23F8EEE5'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23666'>TORTA LAB</text></svg>" alt="Hero image" className="w-full h-full object-cover" />
+          </picture>
         </div>
       </section>
 
@@ -146,14 +151,14 @@ export default function Home() {
 
       <footer className="bg-[#633B2C] text-[#F8EEE5] py-10 mt-6">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-xl font-serif font-bold">TORTA LAB</p>
+          <p className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</p>
           <div className="flex justify-center gap-6 mt-4 text-sm">
             <a href="#cakes">{t.nav.cakes}</a>
             <a href="/customize">{t.nav.customize}</a>
             <a href="#about">{t.nav.about}</a>
           </div>
           <p className="mt-4 text-sm opacity-80">+20 114 835 0515 · Instagram · Facebook</p>
-          <p className="mt-2 text-xs opacity-60">© {new Date().getFullYear()} TORTA LAB. {t.footer.rights}</p>
+          <p className="mt-2 text-xs opacity-60">© {new Date().getFullYear()} {lang === "ar" ? "تورتا لاب" : "TORTA LAB"}. {t.footer.rights}</p>
         </div>
       </footer>
     </div>
