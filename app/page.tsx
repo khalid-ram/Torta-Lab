@@ -78,7 +78,7 @@ export default function Home() {
       </nav>
 
       <section className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
-        <div className="text-center md:text-left">
+        <div className="text-center md:text-start">
           <h1 className="text-3xl md:text-5xl font-serif font-bold leading-tight whitespace-normal">{t.hero.title}</h1>
           <div className="flex flex-wrap justify-center gap-4 mt-8 md:justify-start">
             <a href="/customize" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">{t.hero.primary}</a>
