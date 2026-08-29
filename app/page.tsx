@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -80,11 +81,11 @@ export default function Home() {
           <div className="hidden md:flex gap-8 text-sm font-medium">
             <a href="#" className="hover:text-[#D96C7C]">{t.nav.home}</a>
             <a href="#cakes" className="hover:text-[#D96C7C]">{t.nav.cakes}</a>
-            <a href="/customize" className="hover:text-[#D96C7C]">{t.nav.customize}</a>
+            <Link href="/customize" className="hover:text-[#D96C7C]">{t.nav.customize}</Link>
             <a href="#about" className="hover:text-[#D96C7C]">{t.nav.about}</a>
           </div>
           <div className="flex items-center gap-4">
-            <a href="/customize" className="hidden md:inline-block bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.cta}</a>
+            <Link href="/customize" className="hidden md:inline-block bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.cta}</Link>
             {state.status === "logged-in" && (
               <div className="hidden md:flex items-center gap-3">
                 <span className="text-sm font-medium text-[#633B2C]">{state.user.name}</span>
@@ -93,8 +94,8 @@ export default function Home() {
             )}
             {state.status === "logged-out" && (
               <div className="hidden md:flex items-center gap-3">
-                <a href="/sign-in" className="border border-[#633B2C] text-[#633B2C] px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.signIn}</a>
-                <a href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.signUp}</a>
+                <Link href="/sign-in" className="border border-[#633B2C] text-[#633B2C] px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.signIn}</Link>
+                <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.signUp}</Link>
               </div>
             )}
             <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
@@ -109,7 +110,7 @@ export default function Home() {
         <div className="text-center md:text-start">
           <h1 className="text-3xl md:text-5xl font-serif font-bold leading-tight whitespace-normal">{t.hero.title}</h1>
           <div className="flex flex-wrap justify-center gap-4 mt-8 md:justify-start">
-            <a href="/customize" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">{t.hero.primary}</a>
+            <Link href="/customize" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">{t.hero.primary}</Link>
             <a href="#cakes" className="border border-[#633B2C] text-[#633B2C] px-7 py-3 rounded-full font-semibold hover:bg-[#F8EEE5] transition">{t.hero.secondary}</a>
           </div>
           <div className="mt-8 flex flex-row items-center justify-center gap-2 overflow-x-auto pb-1 md:justify-start md:flex-wrap md:gap-3">
@@ -232,9 +233,9 @@ export default function Home() {
             <div className="p-6 flex flex-col flex-1">
               <h3 className="font-serif font-bold text-xl">{t.cakes.featuredTitle}</h3>
               <p className="text-sm text-[#79665E] mt-2 flex-1">{t.cakes.featuredDesc}</p>
-              <a href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
+              <Link href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
                 {t.customizeThis}
-              </a>
+              </Link>
             </div>
           </div>
           <div className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
@@ -244,9 +245,9 @@ export default function Home() {
               <p className="text-sm text-[#79665E] mt-2 flex-1">
                 {lang === "ar" ? "اختار كل تفصيلة بنفسك واعمل تورتة مخصوصة ليك." : "Choose every detail and build a cake made just for you."}
               </p>
-              <a href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
+              <Link href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
                 {t.customizeThis}
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -267,7 +268,7 @@ export default function Home() {
           <p className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</p>
           <div className="flex justify-center gap-6 mt-4 text-sm">
             <a href="#cakes">{t.nav.cakes}</a>
-            <a href="/customize">{t.nav.customize}</a>
+            <Link href="/customize">{t.nav.customize}</Link>
             <a href="#about">{t.nav.about}</a>
           </div>
           <p className="mt-4 text-sm opacity-80">+20 114 835 0515 · Instagram · Facebook</p>

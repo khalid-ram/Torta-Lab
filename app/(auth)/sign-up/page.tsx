@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { AuthApiError } from "@/lib/api/auth";
@@ -229,7 +230,7 @@ export default function SignUpPage() {
     <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
       <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-4xl mx-auto flex items-center justify-between px-6 py-4">
-          <a href="/" className="text-sm font-semibold text-[#633B2C]">{t.back}</a>
+          <Link href="/" className="text-sm font-semibold text-[#633B2C]">{t.back}</Link>
           <span className="text-xl font-serif font-bold">{t.brand}</span>
           <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
             <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
@@ -313,7 +314,7 @@ export default function SignUpPage() {
 
             <p className="text-center text-sm text-[#79665E] mt-6">
               {t.haveAccount}{" "}
-              <a href="/sign-in" className="text-[#D96C7C] font-semibold">{t.signIn}</a>
+              <Link href="/sign-in" className="text-[#D96C7C] font-semibold">{t.signIn}</Link>
             </p>
           </div>
 
