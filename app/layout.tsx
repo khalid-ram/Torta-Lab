@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Poppins, Markazi_Text, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { AuthProvider } from "@/lib/auth/auth-context";
 import "./globals.css";
 
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-playfair" });
@@ -15,7 +16,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={`${playfair.variable} ${poppins.variable} ${markazi.variable} ${plexArabic.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

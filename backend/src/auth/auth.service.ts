@@ -1,86 +1,146 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { AuthError, PostgrestError } from '@supabase/supabase-js';
+import * as bcrypt from 'bcrypt';
+import { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../supabase/supabase.service';
-import { normalizeEmail, normalizePhone, normalizeUsername } from '../common/utils/normalize';
+import { normalizePhone, normalizeUsername } from '../common/utils/normalize';
 import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { SessionTokenService } from './session-tokens.service';
+import { SessionTokens } from './session-cookies';
 
-export interface SignupResponse {
-  user: {
-    id: string;
-    name: string;
-    username: string;
-    phone: string;
-    email: string | null;
-    role: 'buyer';
-  };
+const BCRYPT_COST_FACTOR = 12;
+
+export interface UserRecord {
+  id: string;
+  name: string;
+  username: string;
+  phone: string;
+  password_hash: string;
+  role: 'buyer' | 'admin';
+  is_active: boolean;
+}
+
+export type AuthenticatedUser = Omit<UserRecord, 'password_hash'>;
+export type PublicUser = Omit<AuthenticatedUser, 'is_active'>;
+
+export interface AuthResult {
+  user: PublicUser;
+  session: SessionTokens;
 }
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly sessionTokens: SessionTokenService,
+  ) {}
 
-  async signup(dto: SignupDto): Promise<SignupResponse> {
+  async signup(dto: SignupDto): Promise<AuthResult> {
     const username = normalizeUsername(dto.username);
     const phone = normalizePhone(dto.phone);
-    const email = dto.email ? normalizeEmail(dto.email) : null;
 
     if (!phone) {
       throw new BadRequestException('Invalid phone number.');
     }
 
-    await this.assertUnique({ username, phone, email });
+    await this.assertUnique({ username, phone });
 
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_COST_FACTOR);
     const client = this.supabaseService.getClient();
 
-    const { data: authData, error: authError } = await client.auth.admin.createUser({
-      phone,
-      password: dto.password,
-      phone_confirm: true,
-      user_metadata: { role: 'buyer' },
-      ...(email ? { email, email_confirm: true } : {}),
-    });
-
-    if (authError || !authData?.user) {
-      throw this.mapAuthCreationError(authError);
-    }
-
-    const authUser = authData.user;
-
-    const { data: profile, error: profileError } = await client
-      .from('profiles')
+    const { data: user, error } = await client
+      .from('users')
       .insert({
-        id: authUser.id,
         name: dto.name,
         username,
         phone,
-        email,
+        password_hash: passwordHash,
         role: 'buyer',
         is_active: true,
       })
-      .select('id, name, username, phone, email, role')
+      .select('id, name, username, phone, role')
       .single();
 
-    if (profileError || !profile) {
-      await this.rollbackAuthUser(authUser.id, profileError);
-      throw this.mapProfileError(profileError);
+    if (error || !user) {
+      throw this.mapInsertError(error);
     }
 
-    return { user: profile as SignupResponse['user'] };
+    return this.issueSession(user as PublicUser);
   }
 
-  private async assertUnique(fields: { username: string; phone: string; email: string | null }) {
+  async login(dto: LoginDto): Promise<AuthResult> {
+    const username = normalizeUsername(dto.username);
+    const client = this.supabaseService.getClient();
+
+    const { data: user, error } = await client
+      .from('users')
+      .select('id, name, username, phone, password_hash, role, is_active')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (error) {
+      this.logger.error(`Failed to look up user for login: ${error.message}`);
+    }
+    if (!user) {
+      throw this.invalidCredentials();
+    }
+
+    const record = user as UserRecord;
+    const passwordMatches = await bcrypt.compare(dto.password, record.password_hash);
+    if (!passwordMatches) {
+      throw this.invalidCredentials();
+    }
+
+    if (!record.is_active) {
+      throw new ForbiddenException('This account has been deactivated.');
+    }
+
+    const { password_hash: _hash, is_active: _isActive, ...publicUser } = record;
+    return this.issueSession(publicUser);
+  }
+
+  async findUserById(id: string): Promise<AuthenticatedUser | null> {
+    const client = this.supabaseService.getClient();
+    const { data, error } = await client
+      .from('users')
+      .select('id, name, username, phone, role, is_active')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) {
+      this.logger.error(`Failed to look up user ${id}: ${error.message}`);
+    }
+    return (data as AuthenticatedUser | null) ?? null;
+  }
+
+  private issueSession(user: PublicUser): AuthResult {
+    return {
+      user,
+      session: {
+        accessToken: this.sessionTokens.signAccessToken(user.id),
+        refreshToken: this.sessionTokens.signRefreshToken(user.id),
+      },
+    };
+  }
+
+  private invalidCredentials(): UnauthorizedException {
+    return new UnauthorizedException('Invalid username or password.');
+  }
+
+  private async assertUnique(fields: { username: string; phone: string }) {
     const client = this.supabaseService.getClient();
 
     const { data: byUsername } = await client
-      .from('profiles')
+      .from('users')
       .select('id')
       .eq('username', fields.username)
       .maybeSingle();
@@ -89,49 +149,20 @@ export class AuthService {
     }
 
     const { data: byPhone } = await client
-      .from('profiles')
+      .from('users')
       .select('id')
       .eq('phone', fields.phone)
       .maybeSingle();
     if (byPhone) {
       throw new ConflictException('Phone number is already registered.');
     }
-
-    if (fields.email) {
-      const { data: byEmail } = await client
-        .from('profiles')
-        .select('id')
-        .eq('email', fields.email)
-        .maybeSingle();
-      if (byEmail) {
-        throw new ConflictException('Email is already registered.');
-      }
-    }
   }
 
-  private async rollbackAuthUser(authUserId: string, cause: PostgrestError | null): Promise<void> {
-    const client = this.supabaseService.getClient();
-    const { error } = await client.auth.admin.deleteUser(authUserId);
-    if (error) {
-      this.logger.error(
-        `Rollback failed for auth user ${authUserId} after profile insert error (${cause?.code}): ${error.message}`,
-      );
-    }
-  }
-
-  private mapAuthCreationError(error: AuthError | null): BadRequestException | ConflictException | InternalServerErrorException {
-    if (error && (error.status === 422 || /already (been )?registered|already exists/i.test(error.message))) {
-      return new ConflictException('Phone or email is already registered.');
-    }
-    this.logger.error(`Supabase auth user creation failed: ${error?.message}`);
-    return new InternalServerErrorException('Unable to complete signup.');
-  }
-
-  private mapProfileError(error: PostgrestError | null): ConflictException | InternalServerErrorException {
+  private mapInsertError(error: PostgrestError | null): ConflictException | InternalServerErrorException {
     if (error?.code === '23505') {
-      return new ConflictException('Username, phone, or email is already registered.');
+      return new ConflictException('Username or phone is already registered.');
     }
-    this.logger.error(`Profile creation failed after auth user was created: ${error?.message}`);
+    this.logger.error(`Failed to create user: ${error?.message}`);
     return new InternalServerErrorException('Unable to complete signup.');
   }
 }

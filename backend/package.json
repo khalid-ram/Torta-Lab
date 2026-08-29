@@ -14,18 +14,26 @@
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.1",
+    "@nestjs/jwt": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
     "@supabase/supabase-js": "^2.112.4",
+    "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
     "joi": "^18.2.5",
-    "jose": "^6.2.10",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.4.0",
     "typescript": "^5.7.3"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true
   }
 }

@@ -2,9 +2,9 @@ import * as Joi from 'joi';
 
 const envSchema = Joi.object({
   SUPABASE_URL: Joi.string().uri().required(),
-  SUPABASE_PUBLISHABLE_KEY: Joi.string().min(1).required(),
   SUPABASE_SECRET_KEY: Joi.string().min(1).required(),
   FRONTEND_URL: Joi.string().uri().required(),
+  SESSION_JWT_SECRET: Joi.string().min(32).required(),
   PORT: Joi.number().port().default(4000),
 }).unknown(true);
 

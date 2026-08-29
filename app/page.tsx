@@ -1,12 +1,13 @@
 "use client";
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { useAuth } from "@/lib/auth/auth-context";
 
 type Lang = "en" | "ar";
 
 const T = {
   en: {
-    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", cta: "Customize Your Cake" },
+    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", cta: "Customize Your Cake", signIn: "Sign In", signUp: "Sign Up", logout: "Logout" },
     hero: { title: "You Design It. We Bake It.", primary: "Build Your Cake", secondary: "Order a Ready Cake",
       trust: ["Fresh Ingredients", "Made to Order", "Custom Designs"] },
     cakes: {
@@ -25,7 +26,7 @@ const T = {
     customizeThis: "Customize This Cake",
   },
   ar: {
-    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", cta: "صمّم تورتتك" },
+    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", cta: "صمّم تورتتك", signIn: "تسجيل الدخول", signUp: "صمّم حسابك", logout: "تسجيل الخروج" },
     hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "ابدأ تصميم تورتتك", secondary: "اطلب تورت جاهزة",
       trust: ["مكونات طازجة", "تتعمل عند الطلب", "تصميم حسب اختيارك"] },
     cakes: {
@@ -54,6 +55,7 @@ export default function Home() {
   const cakeVideoRef = useRef<HTMLVideoElement>(null);
   const dir = lang === "ar" ? "rtl" : "ltr";
   const t = T[lang];
+  const { state, logout } = useAuth();
   const cakeSlides = [
     { type: "image", src: "/assets/cake-made-1.jpg" },
     { type: "image", src: "/assets/cake-made-2.jpg" },
@@ -83,6 +85,18 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <a href="/customize" className="hidden md:inline-block bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.cta}</a>
+            {state.status === "logged-in" && (
+              <div className="hidden md:flex items-center gap-3">
+                <span className="text-sm font-medium text-[#633B2C]">{state.user.name}</span>
+                <button onClick={() => logout()} className="border border-[#633B2C] text-[#633B2C] px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.logout}</button>
+              </div>
+            )}
+            {state.status === "logged-out" && (
+              <div className="hidden md:flex items-center gap-3">
+                <a href="/sign-in" className="border border-[#633B2C] text-[#633B2C] px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.signIn}</a>
+                <a href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.signUp}</a>
+              </div>
+            )}
             <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
               <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
               <button onClick={() => setLang("ar")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "ar" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>AR</button>

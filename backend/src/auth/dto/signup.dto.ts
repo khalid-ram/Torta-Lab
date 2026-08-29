@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsString, Length, Matches, MinLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -21,11 +21,6 @@ export class SignupDto {
   @IsString()
   @Length(6, 20)
   phone!: string;
-
-  @IsOptional()
-  @Transform(trim)
-  @IsEmail()
-  email?: string;
 
   @IsString()
   @MinLength(8)

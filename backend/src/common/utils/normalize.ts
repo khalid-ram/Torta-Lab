@@ -4,10 +4,6 @@ export function normalizeUsername(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
-
 /**
  * Accepts common Egyptian input shapes (01012345678, +201012345678,
  * 00201012345678, 201012345678) and returns canonical E.164, or null
