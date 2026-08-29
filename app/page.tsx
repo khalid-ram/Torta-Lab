@@ -8,7 +8,7 @@ type Lang = "en" | "ar";
 
 const T = {
   en: {
-    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", cta: "Customize Your Cake", signIn: "Sign In", signUp: "Sign Up", logout: "Logout" },
+    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout" },
     hero: { title: "You Design It. We Bake It.", primary: "Build Your Cake", secondary: "Order a Ready Cake",
       trust: ["Fresh Ingredients", "Made to Order", "Custom Designs"] },
     cakes: {
@@ -27,7 +27,7 @@ const T = {
     customizeThis: "Customize This Cake",
   },
   ar: {
-    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", cta: "صمّم تورتتك", signIn: "تسجيل الدخول", signUp: "صمّم حسابك", logout: "تسجيل الخروج" },
+    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج" },
     hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "ابدأ تصميم تورتتك", secondary: "اطلب تورت جاهزة",
       trust: ["مكونات طازجة", "تتعمل عند الطلب", "تصميم حسب اختيارك"] },
     cakes: {
@@ -77,30 +77,33 @@ export default function Home() {
     <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
       <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
-          <div className="hidden md:flex gap-8 text-sm font-medium">
-            <a href="#" className="hover:text-[#D96C7C]">{t.nav.home}</a>
-            <a href="#cakes" className="hover:text-[#D96C7C]">{t.nav.cakes}</a>
-            <Link href="/customize" className="hover:text-[#D96C7C]">{t.nav.customize}</Link>
-            <a href="#about" className="hover:text-[#D96C7C]">{t.nav.about}</a>
+          <div className="flex-1 flex">
+            <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/customize" className="hidden md:inline-block bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.cta}</Link>
+
+          <div className="hidden md:flex gap-8 text-sm font-medium text-[#633B2C]">
+            <a href="#" className="hover:text-[#D96C7C] transition-colors">{t.nav.home}</a>
+            <a href="#cakes" className="hover:text-[#D96C7C] transition-colors">{t.nav.cakes}</a>
+            <Link href="/customize" className="hover:text-[#D96C7C] transition-colors">{t.nav.customize}</Link>
+            <a href="#about" className="hover:text-[#D96C7C] transition-colors">{t.nav.about}</a>
+          </div>
+
+          <div className="flex-1 flex items-center justify-end gap-2 md:gap-3">
             {state.status === "logged-in" && (
-              <div className="hidden md:flex items-center gap-3">
-                <span className="text-sm font-medium text-[#633B2C]">{state.user.name}</span>
-                <button onClick={() => logout()} className="border border-[#633B2C] text-[#633B2C] px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.logout}</button>
+              <div className="flex items-center gap-2 md:gap-3">
+                <span className="hidden md:inline text-sm font-medium text-[#633B2C]">{state.user.name}</span>
+                <button onClick={() => logout()} className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.logout}</button>
               </div>
             )}
             {state.status === "logged-out" && (
-              <div className="hidden md:flex items-center gap-3">
-                <Link href="/sign-in" className="border border-[#633B2C] text-[#633B2C] px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#F8EEE5] transition">{t.nav.signIn}</Link>
-                <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-5 py-2 rounded-full text-sm font-semibold transition">{t.nav.signUp}</Link>
+              <div className="flex items-center gap-2 md:gap-3">
+                <Link href="/sign-in" className="hidden md:inline-flex border border-[#633B2C]/50 text-[#633B2C] px-4 py-2 rounded-full text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.signIn}</Link>
+                <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.nav.signUp}</Link>
               </div>
             )}
-            <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
-              <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
-              <button onClick={() => setLang("ar")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "ar" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>AR</button>
+            <div className="flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
+              <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "en" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>EN</button>
+              <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "ar" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>AR</button>
             </div>
           </div>
         </div>
