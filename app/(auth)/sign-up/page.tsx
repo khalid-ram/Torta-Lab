@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { AuthApiError } from "@/lib/api/auth";
+import { AuthApiError, AuthNetworkError } from "@/lib/api/auth";
 
 type Lang = "en" | "ar";
 type FieldKey = "name" | "username" | "phone" | "password";
@@ -35,6 +35,7 @@ const T = {
     conflictUsername: "already taken",
     conflictPhone: "already registered",
     genericError: "Something went wrong. Please try again.",
+    networkError: "Could not connect to the server. Check your connection and try again.",
   },
   ar: {
     back: "→ رجوع للرئيسية",
@@ -62,6 +63,7 @@ const T = {
     conflictUsername: "مستخدم بالفعل",
     conflictPhone: "مسجل بالفعل",
     genericError: "حصل خطأ، حاول تاني.",
+    networkError: "تعذر الاتصال بالسيرفر. تأكد من اتصالك بالإنترنت وحاول تاني.",
   },
 };
 
@@ -219,6 +221,10 @@ export default function SignUpPage() {
     } catch (err) {
       if (err instanceof AuthApiError && err.status === 409) {
         setError(/username/i.test(err.message) ? `${t.username} ${t.conflictUsername}` : `${t.phone} ${t.conflictPhone}`);
+      } else if (err instanceof AuthApiError && err.status === 400) {
+        setError(err.message || t.genericError);
+      } else if (err instanceof AuthNetworkError) {
+        setError(t.networkError);
       } else {
         setError(t.genericError);
       }

@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { AuthApiError } from "@/lib/api/auth";
+import { AuthNetworkError } from "@/lib/api/auth";
 
 type Lang = "en" | "ar";
 
@@ -21,6 +21,7 @@ const T = {
     signUp: "Sign Up",
     errorRequired: "Please fill in both fields.",
     errorGeneric: "Invalid username or password.",
+    networkError: "Could not connect to the server. Check your connection and try again.",
   },
   ar: {
     back: "→ رجوع للرئيسية",
@@ -35,6 +36,7 @@ const T = {
     signUp: "صمّم حسابك",
     errorRequired: "من فضلك املأ الحقلين.",
     errorGeneric: "اسم المستخدم أو كلمة السر غلط.",
+    networkError: "تعذر الاتصال بالسيرفر. تأكد من اتصالك بالإنترنت وحاول تاني.",
   },
 };
 
@@ -62,11 +64,7 @@ export default function SignInPage() {
       await login({ username: username.trim(), password });
       router.push("/");
     } catch (err) {
-      if (err instanceof AuthApiError && err.status === 401) {
-        setError(t.errorGeneric);
-      } else {
-        setError(t.errorGeneric);
-      }
+      setError(err instanceof AuthNetworkError ? t.networkError : t.errorGeneric);
     } finally {
       setSubmitting(false);
     }
