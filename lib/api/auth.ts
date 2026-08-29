@@ -54,12 +54,24 @@ export async function login(input: { username: string; password: string }): Prom
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const res = await request("/auth/me", { method: "GET" });
-  if (!res.ok) return null;
-  const body = await res.json().catch(() => null);
-  return body?.user ?? null;
+  try {
+    const res = await request("/auth/me", { method: "GET" });
+    if (!res.ok) return null;
+    const body = await res.json().catch(() => null);
+    return body?.user ?? null;
+  } catch {
+    // Backend unreachable: treat like a guest rather than hanging the
+    // auth state in "loading" forever (this call is not user-initiated,
+    // so there's no one to show a network error to).
+    return null;
+  }
 }
 
 export async function logout(): Promise<void> {
-  await request("/auth/logout", { method: "POST" });
+  try {
+    await request("/auth/logout", { method: "POST" });
+  } catch {
+    // Best-effort: the UI should still drop to logged-out locally even
+    // if the network call to clear the server-side cookie fails.
+  }
 }
