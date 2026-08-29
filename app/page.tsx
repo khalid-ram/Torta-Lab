@@ -78,7 +78,7 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
           <div className="flex-1 flex">
-            <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
+            <Logo lang={lang} />
           </div>
 
           <div className="hidden md:flex gap-8 text-sm font-medium text-[#633B2C]">
@@ -97,11 +97,11 @@ export default function Home() {
             )}
             {state.status === "logged-out" && (
               <div className="flex items-center gap-2 md:gap-3">
-                <Link href="/sign-in" className="hidden md:inline-flex border border-[#633B2C]/50 text-[#633B2C] px-4 py-2 rounded-full text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.signIn}</Link>
+                <Link href="/sign-in" className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.signIn}</Link>
                 <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.nav.signUp}</Link>
               </div>
             )}
-            <div className="flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
+            <div className="hidden md:flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
               <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "en" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>EN</button>
               <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "ar" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>AR</button>
             </div>
@@ -278,6 +278,17 @@ export default function Home() {
           <p className="mt-2 text-xs opacity-60">© {new Date().getFullYear()} {lang === "ar" ? "تورتا لاب" : "TORTA LAB"}. {t.footer.rights}</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function Logo({ lang }: { lang: Lang }) {
+  const primary = lang === "ar" ? "تورتا لاب" : "TORTA LAB";
+  const secondary = lang === "ar" ? "TORTA LAB" : "تورتا لاب";
+  return (
+    <div className="flex flex-col leading-none">
+      <span className="text-2xl font-serif font-bold">{primary}</span>
+      <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">{secondary}</span>
     </div>
   );
 }
