@@ -18,7 +18,7 @@ module.exports = {
         whatsapp: "#25D366",
       },
       fontFamily: {
-        serif: ["var(--font-playfair)", "var(--font-markazi)", "serif"],
+        serif: ["var(--font-poppins)", "var(--font-markazi)", "serif"],
         sans: ["var(--font-poppins)", "var(--font-plex-arabic)", "sans-serif"],
       },
     },
