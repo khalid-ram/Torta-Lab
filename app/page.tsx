@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import Image from "next/image";
+import { useRef, useState } from "react";
 
 type Lang = "en" | "ar";
 
@@ -8,37 +9,39 @@ const T = {
     nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", cta: "Customize Your Cake" },
     hero: { title: "You Design It. We Bake It.", primary: "Build Your Cake", secondary: "Order a Ready Cake",
       trust: ["Fresh Ingredients", "Made to Order", "Custom Designs"] },
-    cakes: { title: "Our Cakes", subtitle: "Ready-made designs you can order anytime, baked fresh the moment you order." },
+    cakes: {
+      title: "Cakes We’ve Made",
+      subtitle: "A look at cakes we’ve created, each one made fresh for a special celebration.",
+      featuredTitle: "A Cake We Made",
+      featuredDesc: "Watch this custom cake come to life, then create one made especially for your celebration.",
+      videoLabel: "Video",
+      playVideo: "Play video",
+      previousSlide: "Previous slide",
+      nextSlide: "Next slide",
+    },
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
     footer: { rights: "All rights reserved." },
-    orderNow: "Order Now",
     customizeThis: "Customize This Cake",
-    startingFrom: "Starting from",
-    egp: "EGP",
-    cards: [
-      { name: "Choco Fruit Fusion", desc: "Rich chocolate with refreshing fruit and a creamy finish, bringing different flavors together in every slice.", size: "Medium, 20 cm", price: 750, img: "/assets/choco-fruit-fusion.webp" },
-      { name: "Chocolate Berry Bliss", desc: "Rich chocolate cake with a smooth chocolate finish and a fresh berry touch.", size: "Medium, 20 cm", price: 850, img: "/assets/choclate-torta.webp" },
-      { name: "Peach & Cream Dream", desc: "Light and fluffy cream cake topped with juicy peaches for a fresh, delicate finish.", size: "Medium, 20 cm", price: 700, img: "/assets/torta-cream-1.jpg" },
-    ],
   },
   ar: {
     nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", cta: "صمّم تورتتك" },
     hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "ابدأ تصميم تورتتك", secondary: "اطلب تورت جاهزة",
       trust: ["مكونات طازجة", "تتعمل عند الطلب", "تصميم حسب اختيارك"] },
-    cakes: { title: "تورتنا", subtitle: "أشكال جاهزة للطلب في أي وقت، وبتتعمل فريش عند الطلب." },
+    cakes: {
+      title: "تورتات عملناها",
+      subtitle: "شوف بعض التورتات اللي عملناها فريش مخصوص لمناسبات مميزة.",
+      featuredTitle: "تورتة من شغلنا",
+      featuredDesc: "شوف التورتة دي وهي بتتعمل، وبعدها صمّم تورتة معمولة مخصوص لمناسبتك.",
+      videoLabel: "فيديو",
+      playVideo: "شغّل الفيديو",
+      previousSlide: "الصورة السابقة",
+      nextSlide: "الصورة التالية",
+    },
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
     footer: { rights: "جميع الحقوق محفوظة." },
-    orderNow: "اطلب الآن",
     customizeThis: "صمّم حاجة شبهها",
-    startingFrom: "تبدأ من",
-    egp: "ج.م",
-    cards: [
-      { name: "مكس الشوكولاتة والفواكه", desc: "شوكولاتة غنية مع فواكه منعشة ولمسة كريمية، مزيج مميز لمحبي أكتر من طعم.", size: "متوسط، حوالي 20 سم", price: 750, img: "/assets/choco-fruit-fusion.webp" },
-      { name: "شوكولاتة بيري", desc: "تورتة شوكولاتة غنية بطبقة شوكولاتة ناعمة ولمسة من التوت المنعش.", size: "متوسط، حوالي 20 سم", price: 850, img: "/assets/choclate-torta.webp" },
-      { name: "بيتش آند كريم", desc: "تورتة كريمة خفيفة وناعمة مزينة بالخوخ، بطعم بسيط ومنعش يناسب كل مناسبة.", size: "متوسط، حوالي 20 سم", price: 700, img: "/assets/torta-cream-1.jpg" },
-    ],
   },
 };
 
@@ -46,14 +49,25 @@ const WHATSAPP_NUMBER = "201148350515";
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ar");
+  const [activeCakeSlide, setActiveCakeSlide] = useState(0);
+  const [isCakeVideoPlaying, setIsCakeVideoPlaying] = useState(false);
+  const cakeVideoRef = useRef<HTMLVideoElement>(null);
   const dir = lang === "ar" ? "rtl" : "ltr";
   const t = T[lang];
+  const cakeSlides = [
+    { type: "image", src: "/assets/cake-made-1.jpg" },
+    { type: "image", src: "/assets/cake-made-2.jpg" },
+    { type: "video", src: "/assets/cake-we-made.mp4" },
+  ] as const;
 
-  const orderCakeUrl = (name: string, price: number) => {
-    const msg = lang === "ar"
-      ? `مرحبًا 👋\nأريد طلب: ${name}\nالسعر: ${price} ج.م\nمن فضلك أخبرني بالتوفر.`
-      : `Hello 👋\nI'd like to order: ${name}\nPrice: ${price} EGP\nPlease confirm availability.`;
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+  const showCakeSlide = (index: number) => {
+    cakeVideoRef.current?.pause();
+    setIsCakeVideoPlaying(false);
+    setActiveCakeSlide((index + cakeSlides.length) % cakeSlides.length);
+  };
+
+  const playCakeVideo = () => {
+    void cakeVideoRef.current?.play();
   };
 
   return (
@@ -106,32 +120,117 @@ export default function Home() {
       <section id="cakes" className="max-w-6xl mx-auto px-6 py-14">
         <h2 className="text-3xl font-serif font-bold text-center">{t.cakes.title}</h2>
         <p className="text-center text-[#79665E] mt-3 max-w-xl mx-auto">{t.cakes.subtitle}</p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
-          {t.cards.map((c) => (
-            <div key={c.name} className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
-              <div className="relative aspect-[4/3] bg-[#F8EEE5]">
-                <img src={c.img} alt={c.name} className="w-full h-full object-cover" />
-                <span className="absolute top-3 start-3 bg-white/90 text-xs font-semibold px-3 py-1 rounded-full">{c.size}</span>
-              </div>
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="font-serif font-bold text-lg">{c.name}</h3>
-                <p className="text-sm text-[#79665E] mt-2 flex-1">{c.desc}</p>
-                <p className="text-sm font-semibold text-[#633B2C] mt-3">{t.startingFrom} {c.price} {t.egp}</p>
-                <a href={orderCakeUrl(c.name, c.price)} target="_blank" rel="noreferrer"
-                  className="mt-4 bg-[#25D366] text-white rounded-full py-2.5 flex items-center justify-center gap-2 font-semibold text-sm">
-                  <WhatsAppIcon /> {t.orderNow}
-                </a>
-              </div>
-            </div>
-          ))}
+        <div className="grid max-w-4xl mx-auto sm:grid-cols-2 gap-8 mt-10">
           <div className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
-            <div className="aspect-[4/3] bg-[#F3C7CC]/40 flex items-center justify-center text-[#D96C7C] text-4xl">+</div>
-            <div className="p-5 flex flex-col flex-1">
-              <h3 className="font-serif font-bold text-lg">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
+            <div className="relative h-[28rem] sm:h-[32rem] overflow-hidden bg-black">
+              {cakeSlides.map((slide, index) => (
+                <div
+                  key={slide.src}
+                  aria-hidden={activeCakeSlide !== index}
+                  className={`absolute inset-0 transition-opacity duration-300 ${
+                    activeCakeSlide === index
+                      ? "z-10 opacity-100"
+                      : "pointer-events-none opacity-0"
+                  }`}
+                >
+                  {slide.type === "image" ? (
+                    <Image
+                      src={slide.src}
+                      alt={`${t.cakes.featuredTitle} ${index + 1}`}
+                      fill
+                      sizes="(min-width: 640px) 28rem, 100vw"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <video
+                        ref={cakeVideoRef}
+                        aria-label={t.cakes.featuredTitle}
+                        className="cake-reel h-full w-full object-cover"
+                        controls={isCakeVideoPlaying}
+                        playsInline
+                        preload="metadata"
+                        onPlay={() => setIsCakeVideoPlaying(true)}
+                        onPause={() => setIsCakeVideoPlaying(false)}
+                        onEnded={() => setIsCakeVideoPlaying(false)}
+                      >
+                        <source src={slide.src} type="video/mp4" />
+                      </video>
+                      {!isCakeVideoPlaying && (
+                        <button
+                          type="button"
+                          onClick={playCakeVideo}
+                          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/20 text-white"
+                          aria-label={t.cakes.playVideo}
+                        >
+                          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-2xl text-[#D96C7C] shadow-lg transition-transform hover:scale-105">
+                            <span className="translate-x-0.5">▶</span>
+                          </span>
+                          <span className="rounded-full bg-black/60 px-4 py-2 text-sm font-semibold">
+                            {t.cakes.playVideo}
+                          </span>
+                        </button>
+                      )}
+                      <span className="absolute start-4 top-4 rounded-full bg-[#D96C7C] px-3 py-1 text-xs font-bold text-white shadow-sm">
+                        {t.cakes.videoLabel}
+                      </span>
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {!isCakeVideoPlaying && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => showCakeSlide(activeCakeSlide - 1)}
+                    aria-label={t.cakes.previousSlide}
+                    className="absolute start-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-[#633B2C] shadow-md"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showCakeSlide(activeCakeSlide + 1)}
+                    aria-label={t.cakes.nextSlide}
+                    className="absolute end-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-[#633B2C] shadow-md"
+                  >
+                    ›
+                  </button>
+                  <div className="absolute bottom-4 start-1/2 z-20 flex -translate-x-1/2 gap-2" dir="ltr">
+                    {cakeSlides.map((slide, index) => (
+                      <button
+                        key={slide.src}
+                        type="button"
+                        onClick={() => showCakeSlide(index)}
+                        aria-label={`${t.cakes.featuredTitle} ${index + 1}`}
+                        className={`h-2.5 rounded-full shadow transition-all ${
+                          activeCakeSlide === index
+                            ? "w-7 bg-[#D96C7C]"
+                            : "w-2.5 bg-white/90"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-6 flex flex-col flex-1">
+              <h3 className="font-serif font-bold text-xl">{t.cakes.featuredTitle}</h3>
+              <p className="text-sm text-[#79665E] mt-2 flex-1">{t.cakes.featuredDesc}</p>
+              <a href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
+                {t.customizeThis}
+              </a>
+            </div>
+          </div>
+          <div className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
+            <div className="h-[28rem] sm:h-[32rem] bg-[#F3C7CC]/40 flex items-center justify-center text-[#D96C7C] text-6xl">+</div>
+            <div className="p-6 flex flex-col flex-1">
+              <h3 className="font-serif font-bold text-xl">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
               <p className="text-sm text-[#79665E] mt-2 flex-1">
                 {lang === "ar" ? "اختار كل تفصيلة بنفسك واعمل تورتة مخصوصة ليك." : "Choose every detail and build a cake made just for you."}
               </p>
-              <a href="/customize" className="mt-4 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
+              <a href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
                 {t.customizeThis}
               </a>
             </div>

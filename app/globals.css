@@ -3,3 +3,13 @@
 @tailwind utilities;
 
 html, body { background: #FFF9F3; }
+
+.cake-reel:fullscreen,
+.cake-reel:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  background: #000;
+}
