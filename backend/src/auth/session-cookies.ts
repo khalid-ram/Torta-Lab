@@ -10,10 +10,14 @@ export interface SessionTokens {
 }
 
 function baseCookieOptions(): CookieOptions {
+  const isProduction = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // The frontend (Vercel) and backend (Railway) are different sites in
+    // production, so the cookie must be SameSite=None to survive a
+    // cross-site fetch; browsers require Secure whenever SameSite=None.
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
     path: '/',
   };
 }

@@ -1,0 +1,9 @@
+# Railway's Root Directory for the backend service is set to `backend`,
+# but Railway still uploads the whole repo checkout as build context
+# before cd-ing in, and its dependency-vulnerability scan reads every
+# lockfile it finds in that context. Without this, the root Next.js
+# package-lock.json gets flagged even though the backend never depends
+# on it. Exclude everything except the backend service.
+*
+!backend
+!backend/**
