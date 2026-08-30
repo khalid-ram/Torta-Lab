@@ -89,10 +89,13 @@ export default function Home() {
           </div>
 
           <div className="flex-1 flex items-center justify-end gap-2 md:gap-3">
-            <div className="hidden md:flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
-              <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "en" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>EN</button>
-              <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "ar" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>AR</button>
-            </div>
+            <button
+              onClick={() => setLang(lang === "en" ? "ar" : "en")}
+              className="hidden md:flex items-center gap-1.5 border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap"
+            >
+              <GlobeIcon />
+              {lang === "en" ? "AR" : "EN"}
+            </button>
             {state.status === "logged-in" && (
               <UserMenu name={state.user.name} logoutLabel={t.nav.logout} onLogout={() => logout()} />
             )}
@@ -280,12 +283,12 @@ export default function Home() {
 }
 
 function Logo({ lang }: { lang: Lang }) {
-  const primary = lang === "ar" ? "تورتا لاب" : "TORTA LAB";
-  const secondary = lang === "ar" ? "TORTA LAB" : "تورتا لاب";
   return (
     <div className="flex flex-col leading-none">
-      <span className="text-2xl font-serif font-bold">{primary}</span>
-      <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">{secondary}</span>
+      <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
+      {lang === "ar" && (
+        <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">TORTA LAB</span>
+      )}
     </div>
   );
 }
@@ -339,6 +342,16 @@ function UserMenu({ name, logoutLabel, onLogout }: { name: string; logoutLabel: 
         </div>
       )}
     </div>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.5 2.5 3.8 5.7 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.7-3.8-9s1.3-6.5 3.8-9z" />
+    </svg>
   );
 }
 
