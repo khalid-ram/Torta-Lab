@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 
 type Lang = "en" | "ar";
@@ -89,11 +89,12 @@ export default function Home() {
           </div>
 
           <div className="flex-1 flex items-center justify-end gap-2 md:gap-3">
+            <div className="hidden md:flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
+              <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "en" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>EN</button>
+              <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "ar" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>AR</button>
+            </div>
             {state.status === "logged-in" && (
-              <div className="flex items-center gap-2 md:gap-3">
-                <span className="hidden md:inline text-sm font-medium text-[#633B2C]">{state.user.name}</span>
-                <button onClick={() => logout()} className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.logout}</button>
-              </div>
+              <UserMenu name={state.user.name} logoutLabel={t.nav.logout} onLogout={() => logout()} />
             )}
             {state.status !== "logged-in" && (
               <div className="flex items-center gap-2 md:gap-3">
@@ -101,10 +102,6 @@ export default function Home() {
                 <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.nav.signUp}</Link>
               </div>
             )}
-            <div className="hidden md:flex items-center gap-0.5 bg-[#F8EEE5]/70 rounded-full p-0.5">
-              <button onClick={() => setLang("en")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "en" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>EN</button>
-              <button onClick={() => setLang("ar")} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${lang === "ar" ? "bg-[#F3C7CC]/60 text-[#633B2C] font-semibold" : "text-[#B8A99B] hover:text-[#79665E]"}`}>AR</button>
-            </div>
           </div>
         </div>
       </nav>
@@ -289,6 +286,58 @@ function Logo({ lang }: { lang: Lang }) {
     <div className="flex flex-col leading-none">
       <span className="text-2xl font-serif font-bold">{primary}</span>
       <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">{secondary}</span>
+    </div>
+  );
+}
+
+function UserMenu({ name, logoutLabel, onLogout }: { name: string; logoutLabel: string; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 md:gap-2 pe-1.5 ps-1 py-1 rounded-full hover:bg-[#F8EEE5] transition"
+      >
+        <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-xs md:text-sm font-semibold shrink-0">
+          {name.charAt(0).toUpperCase()}
+        </span>
+        <span className="hidden md:inline text-sm font-medium text-[#633B2C]">{name}</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className={`text-[#633B2C] shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute end-0 mt-2 w-40 bg-white border border-[#E8D8CC] rounded-xl shadow-lg overflow-hidden z-50">
+          <button
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className="w-full text-start px-4 py-2.5 text-sm font-medium text-[#633B2C] hover:bg-[#F8EEE5] transition"
+          >
+            {logoutLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
