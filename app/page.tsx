@@ -8,18 +8,17 @@ type Lang = "en" | "ar";
 
 const T = {
   en: {
-    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout" },
-    hero: { title: "You Design It. We Bake It.", primary: "Build Your Cake", secondary: "Order a Ready Cake",
+    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout", menu: "Open menu", closeMenu: "Close menu" },
+    hero: { title: "You Design It. We Bake It.", primary: "Customize Cake", secondary: "Our Cakes",
       trust: ["Fresh Ingredients", "Made to Order", "Custom Designs"] },
     cakes: {
       title: "Cakes We’ve Made",
       subtitle: "A look at cakes we’ve created, each one made fresh for a special celebration.",
       featuredTitle: "A Cake We Made",
-      featuredDesc: "Watch this custom cake come to life, then create one made especially for your celebration.",
       videoLabel: "Video",
       playVideo: "Play video",
-      previousSlide: "Previous slide",
-      nextSlide: "Next slide",
+      previousSlide: "Previous",
+      nextSlide: "Next",
     },
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
@@ -27,18 +26,17 @@ const T = {
     customizeThis: "Customize This Cake",
   },
   ar: {
-    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج" },
-    hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "ابدأ تصميم تورتتك", secondary: "اطلب تورت جاهزة",
+    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج", menu: "افتح القائمة", closeMenu: "اغلق القائمة" },
+    hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "صمم تورتتك", secondary: "شوف شغلنا",
       trust: ["مكونات طازجة", "تتعمل عند الطلب", "تصميم حسب اختيارك"] },
     cakes: {
       title: "تورتات عملناها",
       subtitle: "شوف بعض التورتات اللي عملناها فريش مخصوص لمناسبات مميزة.",
       featuredTitle: "تورتة من شغلنا",
-      featuredDesc: "شوف التورتة دي وهي بتتعمل، وبعدها صمّم تورتة معمولة مخصوص لمناسبتك.",
       videoLabel: "فيديو",
       playVideo: "شغّل الفيديو",
-      previousSlide: "الصورة السابقة",
-      nextSlide: "الصورة التالية",
+      previousSlide: "السابق",
+      nextSlide: "التالي",
     },
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
@@ -51,33 +49,87 @@ const WHATSAPP_NUMBER = "201148350515";
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ar");
-  const [activeCakeSlide, setActiveCakeSlide] = useState(0);
-  const [isCakeVideoPlaying, setIsCakeVideoPlaying] = useState(false);
-  const cakeVideoRef = useRef<HTMLVideoElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [videoGalleryOpen, setVideoGalleryOpen] = useState(false);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const galleryVideoRef = useRef<HTMLVideoElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const cakesRowRef = useRef<HTMLDivElement>(null);
+  const [canScrollCakes, setCanScrollCakes] = useState(false);
   const dir = lang === "ar" ? "rtl" : "ltr";
   const t = T[lang];
   const { state, logout } = useAuth();
-  const cakeSlides = [
-    { type: "image", src: "/assets/cake-made-1.jpg" },
-    { type: "image", src: "/assets/cake-made-2.jpg" },
-    { type: "video", src: "/assets/cake-we-made.mp4" },
-  ] as const;
 
-  const showCakeSlide = (index: number) => {
-    cakeVideoRef.current?.pause();
-    setIsCakeVideoPlaying(false);
-    setActiveCakeSlide((index + cakeSlides.length) % cakeSlides.length);
+  useEffect(() => {
+    const el = cakesRowRef.current;
+    if (!el) return;
+    const checkOverflow = () => setCanScrollCakes(el.scrollWidth > el.clientWidth + 1);
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
+  }, []);
+
+  const scrollCakes = (direction: 1 | -1) => {
+    const el = cakesRowRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
   };
 
-  const playCakeVideo = () => {
-    void cakeVideoRef.current?.play();
+  useEffect(() => {
+    if (!mobileMenuOpen && !videoGalleryOpen) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen, videoGalleryOpen]);
+
+  const cakeSlides = [{ type: "video", src: "/assets/cake-we-made.mp4" }] as const;
+
+  type CakeSlide = (typeof cakeSlides)[number];
+  const videoSlides = cakeSlides.filter((slide): slide is Extract<CakeSlide, { type: "video" }> => slide.type === "video");
+
+  useEffect(() => {
+    if (!videoGalleryOpen) return;
+    const video = galleryVideoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    void video.play();
+  }, [videoGalleryOpen, activeVideoIndex]);
+
+  const openVideoGallery = (src: string) => {
+    const index = videoSlides.findIndex((slide) => slide.src === src);
+    setActiveVideoIndex(index === -1 ? 0 : index);
+    setVideoGalleryOpen(true);
+  };
+
+  const handleGalleryTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleGalleryTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const deltaY = touchStartY.current - e.changedTouches[0].clientY;
+    touchStartY.current = null;
+    if (deltaY <= 60) return;
+    if (activeVideoIndex < videoSlides.length - 1) {
+      setActiveVideoIndex((index) => index + 1);
+    } else {
+      setVideoGalleryOpen(false);
+    }
   };
 
   return (
-    <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
-      <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
+    <div dir={dir} lang={lang} className="bg-white text-[#33221C] min-h-screen font-sans">
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-[#E8D8CC]">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex-1 flex">
+          <div className="flex-1 flex items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label={t.nav.menu}
+              className="flex md:hidden items-center justify-center w-9 h-9 rounded-full hover:bg-[#F8EEE5] transition -ms-1.5"
+            >
+              <MenuIcon />
+            </button>
             <Logo lang={lang} />
           </div>
 
@@ -90,11 +142,20 @@ export default function Home() {
 
           <div className="flex-1 flex items-center justify-end gap-2 md:gap-3">
             <button
-              onClick={() => setLang(lang === "en" ? "ar" : "en")}
-              className="hidden md:flex items-center gap-1.5 border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap"
+              onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+              className="hidden md:flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
             >
-              <GlobeIcon />
-              {lang === "en" ? "AR" : "EN"}
+              {lang === "ar" ? (
+                <>
+                  <span aria-hidden="true">🇬🇧</span>
+                  EN
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">🇪🇬</span>
+                  عربي
+                </>
+              )}
             </button>
             {state.status === "logged-in" && (
               <UserMenu name={state.user.name} logoutLabel={t.nav.logout} onLogout={() => logout()} />
@@ -109,152 +170,180 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
-        <div className="text-center md:text-start">
-          <h1 className="text-3xl md:text-5xl font-serif font-bold leading-tight whitespace-normal">{t.hero.title}</h1>
-          <div className="flex flex-wrap justify-center gap-4 mt-8 md:justify-start">
-            <Link href="/customize" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">{t.hero.primary}</Link>
-            <a href="#cakes" className="border border-[#633B2C] text-[#633B2C] px-7 py-3 rounded-full font-semibold hover:bg-[#F8EEE5] transition">{t.hero.secondary}</a>
-          </div>
-          <div className="mt-8 flex flex-row items-center justify-center gap-2 overflow-x-auto pb-1 md:justify-start md:flex-wrap md:gap-3">
-            {t.hero.trust.map((item) => (
-              <span key={item} className="flex shrink-0 items-center gap-1.5 text-[#633B2C] text-[12px] font-medium leading-none md:bg-[#F3C7CC]/40 md:px-4 md:py-2 md:rounded-full md:text-sm md:shrink">
-                <span className="w-3.5 h-3.5 shrink-0 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-[9px] md:w-4 md:h-4 md:text-[10px]">✓</span>
-                <span className="whitespace-nowrap">{item}</span>
-              </span>
-            ))}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            aria-label={t.nav.closeMenu}
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 start-0 w-72 max-w-[80vw] bg-white shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8D8CC]">
+              <Logo lang={lang} />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label={t.nav.closeMenu}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F8EEE5] transition"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <nav className="flex flex-col px-5 py-4 text-[#633B2C] font-medium">
+              <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.home}</a>
+              <a href="#cakes" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.cakes}</a>
+              <Link href="/customize" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.customize}</Link>
+              <a href="#about" onClick={() => setMobileMenuOpen(false)} className="py-3">{t.nav.about}</a>
+            </nav>
+            <div className="mt-auto px-5 py-5 border-t border-[#E8D8CC] flex items-center justify-center">
+              <button
+                onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+                className="flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
+              >
+                {lang === "ar" ? (
+                  <>
+                    <span aria-hidden="true">🇬🇧</span>
+                    EN
+                  </>
+                ) : (
+                  <>
+                    <span aria-hidden="true">🇪🇬</span>
+                    عربي
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="rounded-3xl bg-[#F8EEE5] aspect-square overflow-hidden hidden md:block">
-          <picture>
-            {/* Desktop-only source: only requested on viewports >= 768px */}
-            <source media="(min-width:768px)" srcSet="/assets/hero-cake.jpg" />
-            {/* Mobile fallback is a tiny inline SVG placeholder to avoid downloading the large image */}
-            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'><rect width='600' height='600' fill='%23F8EEE5'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23666'>TORTA LAB</text></svg>" alt="Hero image" className="w-full h-full object-cover" />
-          </picture>
+      )}
+
+      <section className="mx-auto px-6 sm:px-10 md:px-16 pt-2 md:pt-4 pb-8 md:pb-14 max-w-[1800px]">
+        <div className="relative rounded-[2rem] overflow-hidden h-[55vh] sm:h-[60vh] md:h-[65vh] max-h-[680px] min-h-[380px] shadow-[0_20px_60px_rgba(99,59,44,0.14)]">
+          <Image
+            src="/assets/hero-personalized-cake.jpg"
+            alt={lang === "ar" ? "تورتة مخصصة مزينة بالورد الطازج على طاولة مطبخ دافئة" : "A personalized cake decorated with fresh flowers on a warm kitchen counter"}
+            fill
+            priority
+            sizes="(min-width: 1800px) 1800px, 100vw"
+            className="object-cover object-right"
+          />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pt-28 sm:pt-0 gap-5 sm:gap-6 px-6 sm:px-10">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold leading-tight whitespace-normal text-center text-black [text-shadow:0_2px_20px_rgba(255,255,255,0.7)]">{t.hero.title}</h1>
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+              <Link href="/customize" className="bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white px-6 sm:px-7 py-3 rounded-full font-semibold transition shadow-[0_8px_24px_rgba(0,0,0,0.15)]">{t.hero.primary}</Link>
+              <a href="#cakes" className="bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-lg text-[#33221C] px-6 sm:px-7 py-3 rounded-full font-semibold transition">{t.hero.secondary}</a>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="cakes" className="max-w-6xl mx-auto px-6 py-14">
+      <section id="cakes" className="group relative max-w-6xl mx-auto px-6 py-14">
         <h2 className="text-3xl font-serif font-bold text-center">{t.cakes.title}</h2>
         <p className="text-center text-[#79665E] mt-3 max-w-xl mx-auto">{t.cakes.subtitle}</p>
-        <div className="grid max-w-4xl mx-auto sm:grid-cols-2 gap-8 mt-10">
-          <div className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
-            <div className="relative h-[28rem] sm:h-[32rem] overflow-hidden bg-black">
-              {cakeSlides.map((slide, index) => (
-                <div
-                  key={slide.src}
-                  aria-hidden={activeCakeSlide !== index}
-                  className={`absolute inset-0 transition-opacity duration-300 ${
-                    activeCakeSlide === index
-                      ? "z-10 opacity-100"
-                      : "pointer-events-none opacity-0"
-                  }`}
-                >
-                  {slide.type === "image" ? (
-                    <Image
-                      src={slide.src}
-                      alt={`${t.cakes.featuredTitle} ${index + 1}`}
-                      fill
-                      sizes="(min-width: 640px) 28rem, 100vw"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <>
-                      <video
-                        ref={cakeVideoRef}
-                        aria-label={t.cakes.featuredTitle}
-                        className="cake-reel h-full w-full object-cover"
-                        controls={isCakeVideoPlaying}
-                        playsInline
-                        preload="metadata"
-                        onPlay={() => setIsCakeVideoPlaying(true)}
-                        onPause={() => setIsCakeVideoPlaying(false)}
-                        onEnded={() => setIsCakeVideoPlaying(false)}
-                      >
-                        <source src={slide.src} type="video/mp4" />
-                      </video>
-                      {!isCakeVideoPlaying && (
-                        <button
-                          type="button"
-                          onClick={playCakeVideo}
-                          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/20 text-white"
-                          aria-label={t.cakes.playVideo}
-                        >
-                          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-2xl text-[#D96C7C] shadow-lg transition-transform hover:scale-105">
-                            <span className="translate-x-0.5">▶</span>
-                          </span>
-                          <span className="rounded-full bg-black/60 px-4 py-2 text-sm font-semibold">
-                            {t.cakes.playVideo}
-                          </span>
-                        </button>
-                      )}
-                      <span className="absolute start-4 top-4 rounded-full bg-[#D96C7C] px-3 py-1 text-xs font-bold text-white shadow-sm">
-                        {t.cakes.videoLabel}
-                      </span>
-                    </>
-                  )}
-                </div>
-              ))}
 
-              {!isCakeVideoPlaying && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => showCakeSlide(activeCakeSlide - 1)}
-                    aria-label={t.cakes.previousSlide}
-                    className="absolute start-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-[#633B2C] shadow-md"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => showCakeSlide(activeCakeSlide + 1)}
-                    aria-label={t.cakes.nextSlide}
-                    className="absolute end-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl text-[#633B2C] shadow-md"
-                  >
-                    ›
-                  </button>
-                  <div className="absolute bottom-4 start-1/2 z-20 flex -translate-x-1/2 gap-2" dir="ltr">
-                    {cakeSlides.map((slide, index) => (
-                      <button
-                        key={slide.src}
-                        type="button"
-                        onClick={() => showCakeSlide(index)}
-                        aria-label={`${t.cakes.featuredTitle} ${index + 1}`}
-                        className={`h-2.5 rounded-full shadow transition-all ${
-                          activeCakeSlide === index
-                            ? "w-7 bg-[#D96C7C]"
-                            : "w-2.5 bg-white/90"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+        {canScrollCakes && (
+          <>
+            <button
+              type="button"
+              onClick={() => scrollCakes(-1)}
+              aria-label={t.cakes.previousSlide}
+              className="hidden md:flex absolute start-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-white text-xl text-[#633B2C] shadow-md opacity-0 group-hover:opacity-100 transition"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollCakes(1)}
+              aria-label={t.cakes.nextSlide}
+              className="hidden md:flex absolute end-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-white text-xl text-[#633B2C] shadow-md opacity-0 group-hover:opacity-100 transition"
+            >
+              ›
+            </button>
+          </>
+        )}
+
+        <div
+          ref={cakesRowRef}
+          className="mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 md:justify-center"
+        >
+          {cakeSlides.map((slide) => (
+            <div
+              key={slide.src}
+              className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-black"
+            >
+              <video className="h-full w-full object-cover" playsInline muted preload="metadata">
+                <source src={slide.src} type="video/mp4" />
+              </video>
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+              <span className="absolute start-4 top-4 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold text-white">
+                {t.cakes.videoLabel}
+              </span>
+              <button
+                type="button"
+                onClick={() => openVideoGallery(slide.src)}
+                aria-label={t.cakes.playVideo}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 backdrop-blur-lg border border-white/50 shadow-lg transition-transform hover:scale-105">
+                  <PlayIcon className="w-6 h-6 text-white ms-1" />
+                </span>
+              </button>
+
+              <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-3">
+                <h3 className="font-serif font-bold text-lg text-white">{t.cakes.featuredTitle}</h3>
+                <Link
+                  href="/customize"
+                  className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
+                >
+                  {t.customizeThis}
+                </Link>
+              </div>
             </div>
-            <div className="p-6 flex flex-col flex-1">
-              <h3 className="font-serif font-bold text-xl">{t.cakes.featuredTitle}</h3>
-              <p className="text-sm text-[#79665E] mt-2 flex-1">{t.cakes.featuredDesc}</p>
-              <Link href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
-                {t.customizeThis}
-              </Link>
-            </div>
-          </div>
-          <div className="bg-[#FFFCF8] rounded-3xl shadow-[0_4px_20px_rgba(99,59,44,0.08)] flex flex-col overflow-hidden">
-            <div className="h-[28rem] sm:h-[32rem] bg-[#F3C7CC]/40 flex items-center justify-center text-[#D96C7C] text-6xl">+</div>
-            <div className="p-6 flex flex-col flex-1">
-              <h3 className="font-serif font-bold text-xl">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
-              <p className="text-sm text-[#79665E] mt-2 flex-1">
-                {lang === "ar" ? "اختار كل تفصيلة بنفسك واعمل تورتة مخصوصة ليك." : "Choose every detail and build a cake made just for you."}
-              </p>
-              <Link href="/customize" className="mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 flex items-center justify-center font-semibold text-sm">
-                {t.customizeThis}
-              </Link>
-            </div>
+          ))}
+
+          <div className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-[#F3C7CC]/40 flex flex-col items-center justify-center text-center p-5">
+            <span className="text-[#D96C7C] text-6xl leading-none">+</span>
+            <h3 className="font-serif font-bold text-xl mt-4">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
+            <p className="text-sm text-[#79665E] mt-2">
+              {lang === "ar" ? "اختار كل تفصيلة بنفسك واعمل تورتة مخصوصة ليك." : "Choose every detail and build a cake made just for you."}
+            </p>
+            <Link href="/customize" className="w-full text-center mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 px-4 font-semibold text-sm">
+              {t.customizeThis}
+            </Link>
           </div>
         </div>
       </section>
+
+      {videoGalleryOpen && videoSlides[activeVideoIndex] && (
+        <div
+          className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          onTouchStart={handleGalleryTouchStart}
+          onTouchEnd={handleGalleryTouchEnd}
+        >
+          <button
+            type="button"
+            onClick={() => setVideoGalleryOpen(false)}
+            aria-label={t.nav.closeMenu}
+            className="absolute top-4 end-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+          >
+            <CloseIcon className="text-white" />
+          </button>
+          <p className="text-white font-serif font-bold text-lg sm:text-xl mb-4 px-6 text-center">{t.cakes.featuredTitle}</p>
+          <video
+            key={videoSlides[activeVideoIndex].src}
+            ref={galleryVideoRef}
+            className="max-h-[75vh] max-w-full rounded-2xl"
+            controls
+            playsInline
+          >
+            <source src={videoSlides[activeVideoIndex].src} type="video/mp4" />
+          </video>
+        </div>
+      )}
 
       <section id="about" className="max-w-2xl mx-auto px-6 py-14 text-center">
         <h2 className="text-3xl font-serif font-bold">{t.about.title}</h2>
@@ -345,12 +434,29 @@ function UserMenu({ name, logoutLabel, onLogout }: { name: string; logoutLabel: 
   );
 }
 
-function GlobeIcon() {
+function MenuIcon({ className = "text-[#633B2C]" }: { className?: string }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-      <circle cx="12" cy="12" r="9" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
+      <path d="M3 6h18" />
       <path d="M3 12h18" />
-      <path d="M12 3c2.5 2.5 3.8 5.7 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.7-3.8-9s1.3-6.5 3.8-9z" />
+      <path d="M3 18h18" />
+    </svg>
+  );
+}
+
+function CloseIcon({ className = "text-[#633B2C]" }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
+      <path d="M18 6L6 18" />
+      <path d="M6 6l12 12" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M8 5v14l11-7z" />
     </svg>
   );
 }
