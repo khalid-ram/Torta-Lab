@@ -3,41 +3,42 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
 
 type Lang = "en" | "ar";
 
 const T = {
   en: {
-    nav: { home: "Home", cakes: "Cakes", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout", menu: "Open menu", closeMenu: "Close menu" },
+    nav: { home: "Home", cakes: "Our Work", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout", menu: "Open menu", closeMenu: "Close menu" },
     hero: { title: "You Design It. We Bake It.", primary: "Customize Cake", secondary: "Our Cakes",
       trust: ["Fresh Ingredients", "Made to Order", "Custom Designs"] },
     cakes: {
-      title: "Cakes We’ve Made",
+      title: "Our Work",
       subtitle: "A look at cakes we’ve created, each one made fresh for a special celebration.",
-      featuredTitle: "A Cake We Made",
       videoLabel: "Video",
       playVideo: "Play video",
       previousSlide: "Previous",
       nextSlide: "Next",
     },
+    orderThisCake: "Order This Cake",
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
     footer: { rights: "All rights reserved." },
     customizeThis: "Customize This Cake",
   },
   ar: {
-    nav: { home: "الرئيسية", cakes: "التورت", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج", menu: "افتح القائمة", closeMenu: "اغلق القائمة" },
+    nav: { home: "الرئيسية", cakes: "شغلنا", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج", menu: "افتح القائمة", closeMenu: "اغلق القائمة" },
     hero: { title: "إنت تصمّمها، وإحنا نخبزها.", primary: "صمم تورتتك", secondary: "شوف شغلنا",
       trust: ["مكونات طازجة", "تتعمل عند الطلب", "تصميم حسب اختيارك"] },
     cakes: {
-      title: "تورتات عملناها",
+      title: "شغلنا",
       subtitle: "شوف بعض التورتات اللي عملناها فريش مخصوص لمناسبات مميزة.",
-      featuredTitle: "تورتة من شغلنا",
       videoLabel: "فيديو",
       playVideo: "شغّل الفيديو",
       previousSlide: "السابق",
       nextSlide: "التالي",
     },
+    orderThisCake: "اطلب التورتة",
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
     footer: { rights: "جميع الحقوق محفوظة." },
@@ -83,10 +84,26 @@ export default function Home() {
     };
   }, [mobileMenuOpen, videoGalleryOpen]);
 
-  const cakeSlides = [{ type: "video", src: "/assets/cake-we-made.mp4" }] as const;
+  // Dynamic Baked Cake cards. Failure is swallowed on purpose: the
+  // permanent Customize card must always render regardless of whether
+  // this fetch succeeds (see spec: "Public API failure must not crash
+  // the homepage").
+  const [bakedCakes, setBakedCakes] = useState<PublicBakedCake[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getPublicBakedCakes()
+      .then((cakes) => {
+        if (!cancelled) setBakedCakes(cakes);
+      })
+      .catch(() => {
+        // Homepage stays fully functional with just the Customize card.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  type CakeSlide = (typeof cakeSlides)[number];
-  const videoSlides = cakeSlides.filter((slide): slide is Extract<CakeSlide, { type: "video" }> => slide.type === "video");
+  const videoCakes = bakedCakes.filter((cake) => cake.mediaType === "video");
 
   useEffect(() => {
     if (!videoGalleryOpen) return;
@@ -96,8 +113,8 @@ export default function Home() {
     void video.play();
   }, [videoGalleryOpen, activeVideoIndex]);
 
-  const openVideoGallery = (src: string) => {
-    const index = videoSlides.findIndex((slide) => slide.src === src);
+  const openVideoGallery = (cakeId: string) => {
+    const index = videoCakes.findIndex((cake) => cake.id === cakeId);
     setActiveVideoIndex(index === -1 ? 0 : index);
     setVideoGalleryOpen(true);
   };
@@ -111,7 +128,7 @@ export default function Home() {
     const deltaY = touchStartY.current - e.changedTouches[0].clientY;
     touchStartY.current = null;
     if (deltaY <= 60) return;
-    if (activeVideoIndex < videoSlides.length - 1) {
+    if (activeVideoIndex < videoCakes.length - 1) {
       setActiveVideoIndex((index) => index + 1);
     } else {
       setVideoGalleryOpen(false);
@@ -266,43 +283,54 @@ export default function Home() {
           ref={cakesRowRef}
           className="mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 md:justify-center"
         >
-          {cakeSlides.map((slide) => (
+          {bakedCakes.map((cake) => (
             <div
-              key={slide.src}
+              key={cake.id}
               className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-black"
             >
-              <video className="h-full w-full object-cover" playsInline muted preload="metadata">
-                <source src={slide.src} type="video/mp4" />
-              </video>
+              <Image
+                src={cake.mediaType === "video" ? cake.thumbnailUrl ?? "" : cake.mediaUrl}
+                alt={cake.name}
+                fill
+                sizes="(min-width: 768px) 18rem, 70vw"
+                className="object-cover"
+              />
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
-              <span className="absolute start-4 top-4 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold text-white">
-                {t.cakes.videoLabel}
-              </span>
-              <button
-                type="button"
-                onClick={() => openVideoGallery(slide.src)}
-                aria-label={t.cakes.playVideo}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 backdrop-blur-lg border border-white/50 shadow-lg transition-transform hover:scale-105">
-                  <PlayIcon className="w-6 h-6 text-white ms-1" />
-                </span>
-              </button>
+              {cake.mediaType === "video" && (
+                <>
+                  <span className="absolute start-4 top-4 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold text-white">
+                    {t.cakes.videoLabel}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openVideoGallery(cake.id)}
+                    aria-label={t.cakes.playVideo}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/25 backdrop-blur-lg border border-white/50 shadow-lg transition-transform hover:scale-105">
+                      <PlayIcon className="w-6 h-6 text-white ms-1" />
+                    </span>
+                  </button>
+                </>
+              )}
 
               <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-3">
-                <h3 className="font-serif font-bold text-lg text-white">{t.cakes.featuredTitle}</h3>
-                <Link
-                  href="/customize"
-                  className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
-                >
-                  {t.customizeThis}
-                </Link>
+                <h3 className="font-serif font-bold text-lg text-white line-clamp-2">{cake.name}</h3>
+                {cake.isAvailableToOrder && (
+                  <Link
+                    href="/customize"
+                    className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
+                  >
+                    {t.orderThisCake}
+                  </Link>
+                )}
               </div>
             </div>
           ))}
 
+          {/* Static, frontend-owned card — never backed by baked_cakes data. */}
           <div className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-[#F3C7CC]/40 flex flex-col items-center justify-center text-center p-5">
             <span className="text-[#D96C7C] text-6xl leading-none">+</span>
             <h3 className="font-serif font-bold text-xl mt-4">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
@@ -316,7 +344,7 @@ export default function Home() {
         </div>
       </section>
 
-      {videoGalleryOpen && videoSlides[activeVideoIndex] && (
+      {videoGalleryOpen && videoCakes[activeVideoIndex] && (
         <div
           className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center"
           role="dialog"
@@ -332,15 +360,15 @@ export default function Home() {
           >
             <CloseIcon className="text-white" />
           </button>
-          <p className="text-white font-serif font-bold text-lg sm:text-xl mb-4 px-6 text-center">{t.cakes.featuredTitle}</p>
+          <p className="text-white font-serif font-bold text-lg sm:text-xl mb-4 px-6 text-center">{videoCakes[activeVideoIndex].name}</p>
           <video
-            key={videoSlides[activeVideoIndex].src}
+            key={videoCakes[activeVideoIndex].id}
             ref={galleryVideoRef}
             className="max-h-[75vh] max-w-full rounded-2xl"
             controls
             playsInline
           >
-            <source src={videoSlides[activeVideoIndex].src} type="video/mp4" />
+            <source src={videoCakes[activeVideoIndex].mediaUrl} type="video/mp4" />
           </video>
         </div>
       )}

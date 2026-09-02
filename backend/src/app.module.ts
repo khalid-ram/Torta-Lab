@@ -5,6 +5,7 @@ import { HealthController } from './health/health.controller';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { BakedCakesModule } from './baked-cakes/baked-cakes.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UsersModule } from './users/users.module';
     SupabaseModule,
     AuthModule,
     UsersModule,
+    BakedCakesModule,
   ],
   controllers: [HealthController],
 })
