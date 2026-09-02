@@ -19,6 +19,9 @@ import { SessionTokenService } from './session-tokens.service';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard, SessionTokenService],
-  exports: [AuthGuard],
+  // AuthGuard's own dependencies must also be exported: a module that
+  // reuses AuthGuard via @UseGuards() needs to resolve its full
+  // constructor graph, not just the guard class itself.
+  exports: [AuthGuard, AuthService, SessionTokenService],
 })
 export class AuthModule {}
