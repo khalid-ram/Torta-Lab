@@ -59,6 +59,17 @@ function CakeIcon() {
   );
 }
 
+function SlidersIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d="M4 6h10M18 6h2M4 12h2M8 12h12M4 18h14M22 18h-4" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="6" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
+  );
+}
+
 function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { lang } = useAdminUi();
@@ -68,6 +79,7 @@ function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
     { href: "/admin", label: t.nav.dashboard, icon: <DashboardIcon />, active: pathname === "/admin" },
     { href: "/admin/users", label: t.nav.users, icon: <UsersIcon />, active: pathname?.startsWith("/admin/users") },
     { href: "/admin/baked-cakes", label: t.nav.bakedCakes, icon: <CakeIcon />, active: pathname?.startsWith("/admin/baked-cakes") },
+    { href: "/admin/customization", label: t.nav.customization, icon: <SlidersIcon />, active: pathname?.startsWith("/admin/customization") },
   ];
 
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
+import { WHATSAPP_NUMBER, buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
 
 type Lang = "en" | "ar";
 
@@ -20,7 +21,10 @@ const T = {
       previousSlide: "Previous",
       nextSlide: "Next",
     },
-    orderThisCake: "Order This Cake",
+    orderNow: "Order Now",
+    customizeYours: "Customize Yours",
+    whatsappCakeMessage: (name: string) =>
+      `Hello 👋\nI'd like to order this cake: ${name}\nPlease let me know the price and availability.`,
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
     footer: { rights: "All rights reserved." },
@@ -38,15 +42,16 @@ const T = {
       previousSlide: "السابق",
       nextSlide: "التالي",
     },
-    orderThisCake: "اطلب التورتة",
+    orderNow: "اطلب الآن",
+    customizeYours: "صمم تورتتك",
+    whatsappCakeMessage: (name: string) =>
+      `مرحبًا 👋\nأريد طلب هذه التورتة: ${name}\nمن فضلك أخبرني بالسعر والتوفر.`,
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
     footer: { rights: "جميع الحقوق محفوظة." },
     customizeThis: "صمّم حاجة شبهها",
   },
 };
-
-const WHATSAPP_NUMBER = "201148350515";
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ar");
@@ -318,12 +323,21 @@ export default function Home() {
 
               <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-3">
                 <h3 className="font-serif font-bold text-lg text-white line-clamp-2">{cake.name}</h3>
-                {cake.isAvailableToOrder && (
+                {cake.isAvailableToOrder ? (
+                  <a
+                    href={buildWhatsAppUrl(t.whatsappCakeMessage(cake.name))}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full flex items-center justify-center gap-2 text-center bg-[#25D366] hover:bg-[#20BD5A] border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
+                  >
+                    <WhatsAppIcon /> {t.orderNow}
+                  </a>
+                ) : (
                   <Link
                     href="/customize"
                     className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
                   >
-                    {t.orderThisCake}
+                    {t.customizeYours}
                   </Link>
                 )}
               </div>
@@ -489,11 +503,3 @@ function PlayIcon({ className }: { className?: string }) {
   );
 }
 
-function WhatsAppIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.2-.1-.4-.1-.6.1-.2.2-.6.9-.8 1-.1.2-.3.2-.5.1-1.5-.7-2.5-1.3-3.5-3-.1-.2 0-.4.1-.5l.5-.6c.1-.2.1-.4 0-.5-.1-.2-.6-1.5-.8-2-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9 1-.9 2.3 0 1.4 1 2.7 1.2 2.9.2.2 1.9 3 4.7 4.1 2.3.9 2.8.7 3.3.7.5-.1 1.6-.7 1.8-1.3.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3z" />
-      <path d="M12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.3L2 22l4.9-1.3C8.4 21.5 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.2-.4-4.5-1.2l-.3-.2-3.1.8.8-3-.2-.3C3.9 14.9 3.4 13.5 3.4 12 3.4 7.3 7.3 3.4 12 3.4s8.6 3.9 8.6 8.6-3.9 8.6-8.6 8.6z" />
-    </svg>
-  );
-}

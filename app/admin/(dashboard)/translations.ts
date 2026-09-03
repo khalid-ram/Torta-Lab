@@ -1,7 +1,7 @@
 import type { Lang } from "./admin-context";
 
 export const adminT: Record<Lang, {
-  nav: { dashboard: string; users: string; bakedCakes: string };
+  nav: { dashboard: string; users: string; bakedCakes: string; customization: string };
   topbar: { badge: string; logout: string };
   forbidden: { title: string; body: string; home: string };
   loading: string;
@@ -103,9 +103,73 @@ export const adminT: Record<Lang, {
     viewVideo: string;
     videoBadge: string;
   };
+  customization: {
+    title: string;
+    subtitle: string;
+    addField: string;
+    colOrder: string;
+    colField: string;
+    colType: string;
+    colRequired: string;
+    colPlacement: string;
+    colStatus: string;
+    colActions: string;
+    typeText: string;
+    typeNumber: string;
+    typeSelection: string;
+    required: string;
+    optional: string;
+    placementSeparate: (afterLabel: string) => string;
+    placementSame: (coreLabel: string) => string;
+    statusActive: string;
+    statusPaused: string;
+    actionsMenu: string;
+    edit: string;
+    activate: string;
+    pause: string;
+    moveUp: string;
+    moveDown: string;
+    deleteAction: string;
+    empty: string;
+    errorGeneric: string;
+    confirmPauseTitle: string;
+    confirmActivateTitle: string;
+    confirmDeleteTitle: string;
+    confirmDeleteBody: string;
+    cancel: string;
+    confirmConfirm: string;
+    addFieldTitle: string;
+    editFieldTitle: string;
+    fieldLabel: string;
+    fieldLabelPlaceholder: string;
+    fieldDescription: string;
+    fieldDescriptionPlaceholder: string;
+    fieldRequired: string;
+    requiredHelp: string;
+    fieldType: string;
+    selectionModeLabel: string;
+    singleSelect: string;
+    multiSelect: string;
+    optionsLabel: string;
+    addOption: string;
+    removeOption: string;
+    optionPlaceholder: (n: number) => string;
+    optionsMinError: string;
+    placementLabel: string;
+    placementSameStepOption: string;
+    placementSeparateStepOption: string;
+    coreStepLabel: string;
+    coreStepPlaceholder: string;
+    insertAfterLabel: string;
+    insertAfterPlaceholder: string;
+    coreSteps: Record<"occasion" | "tiers" | "flavors" | "sizeFilling" | "colorsMessage" | "photo" | "notes", string>;
+    save: string;
+    saving: string;
+    close: string;
+  };
 }> = {
   en: {
-    nav: { dashboard: "Dashboard", users: "User Management", bakedCakes: "Baked Cakes" },
+    nav: { dashboard: "Dashboard", users: "User Management", bakedCakes: "Baked Cakes", customization: "Customization" },
     topbar: { badge: "Admin", logout: "Log out" },
     close: "Close",
     forbidden: {
@@ -216,9 +280,81 @@ export const adminT: Record<Lang, {
       viewVideo: "View Video",
       videoBadge: "Video",
     },
+    customization: {
+      title: "Customization",
+      subtitle: "Manage the questions customers answer while designing a cake.",
+      addField: "Add Field",
+      colOrder: "Order",
+      colField: "Field",
+      colType: "Type",
+      colRequired: "Required",
+      colPlacement: "Placement",
+      colStatus: "Status",
+      colActions: "Actions",
+      typeText: "Free Text",
+      typeNumber: "Numbers Only",
+      typeSelection: "Selection",
+      required: "Required",
+      optional: "Optional",
+      placementSeparate: (afterLabel) => `Separate Step — After ${afterLabel}`,
+      placementSame: (coreLabel) => `Same Step — ${coreLabel}`,
+      statusActive: "Active",
+      statusPaused: "Paused",
+      actionsMenu: "Actions",
+      edit: "Edit",
+      activate: "Activate",
+      pause: "Pause",
+      moveUp: "Move Up",
+      moveDown: "Move Down",
+      deleteAction: "Delete",
+      empty: "No customization fields yet.",
+      errorGeneric: "Something went wrong. Please try again.",
+      confirmPauseTitle: "Pause this field?",
+      confirmActivateTitle: "Activate this field?",
+      confirmDeleteTitle: "Delete this field?",
+      confirmDeleteBody: "This cannot be undone. Customers will stop seeing this question immediately.",
+      cancel: "Cancel",
+      confirmConfirm: "Confirm",
+      addFieldTitle: "Add Field",
+      editFieldTitle: "Edit Field",
+      fieldLabel: "Question / Label",
+      fieldLabelPlaceholder: "e.g. How many candles?",
+      fieldDescription: "Helper Text (optional)",
+      fieldDescriptionPlaceholder: "Extra context shown under the question",
+      fieldRequired: "Required",
+      requiredHelp: "Required means the customer cannot continue without answering.",
+      fieldType: "Field Type",
+      selectionModeLabel: "Selection Behavior",
+      singleSelect: "Single Select",
+      multiSelect: "Multi Select",
+      optionsLabel: "Options",
+      addOption: "Add Option",
+      removeOption: "Remove",
+      optionPlaceholder: (n) => `Option ${n}`,
+      optionsMinError: "Add at least 2 options.",
+      placementLabel: "Placement",
+      placementSameStepOption: "Same Step",
+      placementSeparateStepOption: "Separate Step",
+      coreStepLabel: "Core Step",
+      coreStepPlaceholder: "Select a step",
+      insertAfterLabel: "Insert After",
+      insertAfterPlaceholder: "Select a step",
+      coreSteps: {
+        occasion: "Occasion",
+        tiers: "Tiers",
+        flavors: "Flavors",
+        sizeFilling: "Size & Filling",
+        colorsMessage: "Colors & Message",
+        photo: "Photo",
+        notes: "Notes",
+      },
+      save: "Save",
+      saving: "Saving...",
+      close: "Close",
+    },
   },
   ar: {
-    nav: { dashboard: "لوحة التحكم", users: "إدارة المستخدمين", bakedCakes: "تورتنا" },
+    nav: { dashboard: "لوحة التحكم", users: "إدارة المستخدمين", bakedCakes: "تورتنا", customization: "التخصيص" },
     topbar: { badge: "مدير", logout: "تسجيل الخروج" },
     close: "إغلاق",
     forbidden: {
@@ -328,6 +464,78 @@ export const adminT: Record<Lang, {
       viewPhoto: "عرض الصورة",
       viewVideo: "عرض الفيديو",
       videoBadge: "فيديو",
+    },
+    customization: {
+      title: "التخصيص",
+      subtitle: "أدر الأسئلة اللي العميل بيجاوب عليها وهو بيصمم التورتة.",
+      addField: "إضافة حقل",
+      colOrder: "الترتيب",
+      colField: "الحقل",
+      colType: "النوع",
+      colRequired: "إلزامي",
+      colPlacement: "المكان",
+      colStatus: "الحالة",
+      colActions: "الإجراءات",
+      typeText: "نص حر",
+      typeNumber: "أرقام فقط",
+      typeSelection: "اختيار",
+      required: "إلزامي",
+      optional: "اختياري",
+      placementSeparate: (afterLabel) => `خطوة منفصلة — بعد ${afterLabel}`,
+      placementSame: (coreLabel) => `نفس الخطوة — ${coreLabel}`,
+      statusActive: "نشط",
+      statusPaused: "متوقف",
+      actionsMenu: "الإجراءات",
+      edit: "تعديل",
+      activate: "تفعيل",
+      pause: "إيقاف",
+      moveUp: "تحريك لأعلى",
+      moveDown: "تحريك لأسفل",
+      deleteAction: "حذف",
+      empty: "لا يوجد حقول تخصيص حتى الآن.",
+      errorGeneric: "حدث خطأ ما. حاول مرة أخرى.",
+      confirmPauseTitle: "هل تريد إيقاف هذا الحقل؟",
+      confirmActivateTitle: "هل تريد تفعيل هذا الحقل؟",
+      confirmDeleteTitle: "هل تريد حذف هذا الحقل؟",
+      confirmDeleteBody: "لا يمكن التراجع عن هذا الإجراء. سيختفي هذا السؤال للعملاء فورًا.",
+      cancel: "إلغاء",
+      confirmConfirm: "تأكيد",
+      addFieldTitle: "إضافة حقل",
+      editFieldTitle: "تعديل الحقل",
+      fieldLabel: "السؤال / العنوان",
+      fieldLabelPlaceholder: "مثال: عدد الشموع؟",
+      fieldDescription: "نص مساعد (اختياري)",
+      fieldDescriptionPlaceholder: "توضيح إضافي يظهر تحت السؤال",
+      fieldRequired: "إلزامي",
+      requiredHelp: "الحقل الإلزامي يمنع العميل من المتابعة قبل الإجابة عليه.",
+      fieldType: "نوع الحقل",
+      selectionModeLabel: "طريقة الاختيار",
+      singleSelect: "اختيار واحد",
+      multiSelect: "اختيار متعدد",
+      optionsLabel: "الخيارات",
+      addOption: "إضافة خيار",
+      removeOption: "إزالة",
+      optionPlaceholder: (n) => `الخيار ${n}`,
+      optionsMinError: "أضف خيارين على الأقل.",
+      placementLabel: "المكان",
+      placementSameStepOption: "نفس الخطوة",
+      placementSeparateStepOption: "خطوة منفصلة",
+      coreStepLabel: "الخطوة الأساسية",
+      coreStepPlaceholder: "اختار خطوة",
+      insertAfterLabel: "أضف بعد",
+      insertAfterPlaceholder: "اختار خطوة",
+      coreSteps: {
+        occasion: "المناسبة",
+        tiers: "الأدوار",
+        flavors: "النكهات",
+        sizeFilling: "الحجم والحشو",
+        colorsMessage: "الألوان والكتابة",
+        photo: "الصورة",
+        notes: "ملاحظات",
+      },
+      save: "حفظ",
+      saving: "جارٍ الحفظ...",
+      close: "إغلاق",
     },
   },
 };

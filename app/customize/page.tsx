@@ -1,10 +1,18 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
+import { getPublicCustomization, type CoreStepKey, type PublicCustomizationField } from "@/lib/api/customization";
+import { CakeProgress } from "./cake-progress";
 
 type Lang = "en" | "ar";
 type Flavor = "chocolate" | "cream" | "half" | "other" | null;
 type Tier = { flavor: Flavor; otherFlavor?: string };
+// A dynamic field's answer: a single string for text/number/single-select
+// (the select case stores the chosen option id), or a string[] of option
+// ids for multi-select. Resolved to display labels only when needed
+// (Review step, WhatsApp message) via the live config already in state.
+type DynamicAnswer = string | string[];
 type OrderState = {
   step: number; maxStepReached: number;
   occasion: string | null;
@@ -14,21 +22,51 @@ type OrderState = {
   colors: string[]; colorOther: string;
   message: string; notes: string;
   refPhotoDataUrl: string | null;
+  dynamicAnswers: Record<string, DynamicAnswer>;
 };
 
-const WHATSAPP_NUMBER = "201148350515";
 const STORAGE_KEY = "torta-lab-order-state";
 
 const defaultState: OrderState = {
   step: 0, maxStepReached: 0, occasion: null, tierCount: 1, tiers: [{ flavor: null }],
   size: null, filling: null, fillingOther: "", colors: [], colorOther: "",
-  message: "", notes: "", refPhotoDataUrl: null,
+  message: "", notes: "", refPhotoDataUrl: null, dynamicAnswers: {},
 };
 
-const STEP_LABELS = {
-  en: ["Occasion", "Tiers", "Flavors", "Size & Filling", "Colors & Message", "Photo", "Notes", "Review"],
-  ar: ["المناسبة", "الأدوار", "النكهات", "الحجم والحشو", "الألوان والكتابة", "الصورة", "ملاحظات", "المراجعة"],
+// The 7 placeable Core Steps, in their fixed order, plus the final
+// Review page. These stable ids are the integration points a Custom
+// Question attaches to (Same Step -> renders inline on one of the 7;
+// Separate Step -> becomes its own step positioned right after one of
+// the 7) — mirrored exactly on the backend as CORE_STEP_KEYS.
+type CoreStepId = CoreStepKey | "review";
+const CORE_STEP_ORDER: CoreStepKey[] = ["occasion", "tiers", "flavors", "sizeFilling", "colorsMessage", "photo", "notes"];
+
+type StepDescriptor = { kind: "core"; id: CoreStepId } | { kind: "separate"; field: PublicCustomizationField };
+
+const CORE_STEP_LABELS: Record<Lang, Record<CoreStepId, string>> = {
+  en: { occasion: "Occasion", tiers: "Tiers", flavors: "Flavors", sizeFilling: "Size & Filling", colorsMessage: "Colors & Message", photo: "Photo", notes: "Notes", review: "Review" },
+  ar: { occasion: "المناسبة", tiers: "الأدوار", flavors: "النكهات", sizeFilling: "الحجم والحشو", colorsMessage: "الألوان والكتابة", photo: "الصورة", notes: "ملاحظات", review: "المراجعة" },
 };
+
+function isDynamicFieldAnswered(field: PublicCustomizationField, answer: DynamicAnswer | undefined): boolean {
+  if (field.type === "text") return typeof answer === "string" && answer.trim().length > 0;
+  if (field.type === "number") return typeof answer === "string" && answer.trim().length > 0 && !Number.isNaN(Number(answer));
+  // A selection answer only counts if the option id still belongs to the
+  // field's current (live-fetched) options — an id an admin has since
+  // removed (e.g. a stale localStorage answer from a prior visit) must
+  // not silently satisfy a required field.
+  const validIds = new Set((field.options ?? []).map((o) => o.id));
+  if (field.selectionMode === "multi") return Array.isArray(answer) && answer.some((id) => validIds.has(id));
+  return typeof answer === "string" && validIds.has(answer);
+}
+
+function resolveDynamicAnswerText(field: PublicCustomizationField, answer: DynamicAnswer | undefined): string | null {
+  if (!isDynamicFieldAnswered(field, answer)) return null;
+  if (field.type !== "selection") return (answer as string).trim();
+  const ids = Array.isArray(answer) ? answer : [answer as string];
+  const labels = ids.map((id) => field.options?.find((o) => o.id === id)?.label).filter((l): l is string => !!l);
+  return labels.length ? labels.join(", ") : null;
+}
 
 const OCCASIONS = {
   en: ["Birthday", "Wedding", "Engagement", "Anniversary", "Other", "No Occasion"],
@@ -51,6 +89,7 @@ export default function CustomizePage() {
   const [state, setState] = useState<OrderState>(defaultState);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [fields, setFields] = useState<PublicCustomizationField[]>([]);
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   useEffect(() => {
@@ -63,6 +102,59 @@ export default function CustomizePage() {
     const { refPhotoDataUrl, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
   }, [state]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPublicCustomization()
+      .then((config) => { if (!cancelled) setFields(config.fields); })
+      .catch(() => {
+        // The core 7-step flow keeps working with zero admin-created fields.
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Same Step: fields grouped by the existing Core Step they render on.
+  const sameStepFieldsByCore = useMemo(() => {
+    const map: Partial<Record<CoreStepKey, PublicCustomizationField[]>> = {};
+    for (const f of fields) {
+      if (f.placementType === "core_step" && f.coreStepKey) (map[f.coreStepKey] ??= []).push(f);
+    }
+    for (const key of Object.keys(map) as CoreStepKey[]) map[key]!.sort((a, b) => a.order - b.order);
+    return map;
+  }, [fields]);
+
+  // Separate Step: fields grouped by the Core Step they're anchored after.
+  const separateStepsByCore = useMemo(() => {
+    const map: Partial<Record<CoreStepKey, PublicCustomizationField[]>> = {};
+    for (const f of fields) {
+      if (f.placementType === "separate_step" && f.afterCoreStepKey) (map[f.afterCoreStepKey] ??= []).push(f);
+    }
+    for (const key of Object.keys(map) as CoreStepKey[]) map[key]!.sort((a, b) => a.order - b.order);
+    return map;
+  }, [fields]);
+
+  // One unified runtime sequence: each Core Step, immediately followed by
+  // any Separate Step custom questions anchored after it. Same Step
+  // custom questions never appear here — they render inline on their
+  // target Core Step instead.
+  const stepList: StepDescriptor[] = useMemo(() => {
+    const result: StepDescriptor[] = [];
+    for (const key of CORE_STEP_ORDER) {
+      result.push({ kind: "core", id: key });
+      for (const f of separateStepsByCore[key] ?? []) result.push({ kind: "separate", field: f });
+    }
+    result.push({ kind: "core", id: "review" });
+    return result;
+  }, [separateStepsByCore]);
+
+  const lastStepIndex = stepList.length - 1;
+  const currentDescriptor = stepList[state.step] ?? stepList[0];
+
+  const coreStepIndex = (id: CoreStepId) => stepList.findIndex((d) => d.kind === "core" && d.id === id);
+  const fieldStepIndex = (field: PublicCustomizationField) =>
+    field.placementType === "core_step"
+      ? coreStepIndex(field.coreStepKey as CoreStepId)
+      : stepList.findIndex((d) => d.kind === "separate" && d.field.id === field.id);
 
   const set = (patch: Partial<OrderState>) => setState((s) => ({ ...s, ...patch }));
 
@@ -83,19 +175,61 @@ export default function CustomizePage() {
     set({ colors });
   };
 
+  const setDynamicText = (fieldId: string, value: string) => {
+    set({ dynamicAnswers: { ...state.dynamicAnswers, [fieldId]: value } });
+  };
+  const setDynamicNumber = (fieldId: string, raw: string) => {
+    const cleaned = raw.replace(/[^0-9.]/g, "");
+    setDynamicText(fieldId, cleaned);
+  };
+  const setDynamicSingleSelect = (fieldId: string, optionId: string) => {
+    set({ dynamicAnswers: { ...state.dynamicAnswers, [fieldId]: optionId } });
+  };
+  const toggleDynamicMultiSelect = (fieldId: string, optionId: string) => {
+    const current = state.dynamicAnswers[fieldId];
+    const selected = Array.isArray(current) ? current : [];
+    const next = selected.includes(optionId) ? selected.filter((id) => id !== optionId) : [...selected, optionId];
+    set({ dynamicAnswers: { ...state.dynamicAnswers, [fieldId]: next } });
+  };
+
+  const requiredSameStepAnswered = (id: CoreStepId) =>
+    (sameStepFieldsByCore[id as CoreStepKey] ?? [])
+      .filter((f) => f.required)
+      .every((f) => isDynamicFieldAnswered(f, state.dynamicAnswers[f.id]));
+
   const canContinue = useMemo(() => {
-    if (state.step === 0) return !!state.occasion;
-    if (state.step === 2) return state.tiers.every((t) => t.flavor && (t.flavor !== "other" || t.otherFlavor?.trim()));
-    if (state.step === 3) {
-      const fillingOk = !!state.filling && (state.filling !== "Other" && state.filling !== "أخرى" || state.fillingOther.trim());
+    if (currentDescriptor.kind === "separate") {
+      const f = currentDescriptor.field;
+      return !f.required || isDynamicFieldAnswered(f, state.dynamicAnswers[f.id]);
+    }
+    if (!requiredSameStepAnswered(currentDescriptor.id)) return false;
+    if (currentDescriptor.id === "occasion") return !!state.occasion;
+    if (currentDescriptor.id === "flavors") return state.tiers.every((t) => t.flavor && (t.flavor !== "other" || t.otherFlavor?.trim()));
+    if (currentDescriptor.id === "sizeFilling") {
+      const fillingOk = !!state.filling && (state.filling !== "Other" && state.filling !== "أخرى" || !!state.fillingOther.trim());
       return !!state.size && fillingOk;
     }
     return true;
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, currentDescriptor, sameStepFieldsByCore]);
 
-  const goNext = () => { if (!canContinue) return; const s = Math.min(state.step + 1, 7); set({ step: s, maxStepReached: Math.max(state.maxStepReached, s) }); };
+  const goNext = () => { if (!canContinue) return; const s = Math.min(state.step + 1, lastStepIndex); set({ step: s, maxStepReached: Math.max(state.maxStepReached, s) }); };
   const goBack = () => set({ step: Math.max(state.step - 1, 0) });
-  const goToStep = (i: number) => { if (i <= state.maxStepReached) set({ step: i }); };
+  const goToStep = (i: number) => { if (i >= 0 && i <= state.maxStepReached) set({ step: i }); };
+
+  const requiredChecks = useMemo(() => {
+    const checks: boolean[] = [
+      !!state.occasion,
+      state.tiers.every((t) => t.flavor && (t.flavor !== "other" || t.otherFlavor?.trim())),
+      !!state.size,
+      !!state.filling && (state.filling !== "Other" && state.filling !== "أخرى" || !!state.fillingOther.trim()),
+    ];
+    for (const field of fields) {
+      if (field.required) checks.push(isDynamicFieldAnswered(field, state.dynamicAnswers[field.id]));
+    }
+    return checks;
+  }, [state, fields]);
+  const progress = requiredChecks.filter(Boolean).length / requiredChecks.length;
 
   const handleFile = (file: File) => {
     const reader = new FileReader();
@@ -122,6 +256,10 @@ export default function CustomizePage() {
     }
     if (state.message.trim()) lines.push(`✍️ ${L === "ar" ? "الكتابة على التورتة" : "Cake Message"}: ${state.message.trim()}`);
     if (state.notes.trim()) lines.push(`📝 ${L === "ar" ? "ملاحظات إضافية" : "Additional Notes"}:\n${state.notes.trim()}`);
+    for (const field of fields) {
+      const text = resolveDynamicAnswerText(field, state.dynamicAnswers[field.id]);
+      if (text) lines.push(`🎯 ${field.label}: ${text}`);
+    }
     if (state.refPhotoDataUrl) {
       lines.push(L === "ar" ? "📷 عندي صورة مرجعية للديكور وهبعتها هنا على واتساب." : "📷 I have a reference photo for the decoration and will attach it in WhatsApp.");
     }
@@ -134,13 +272,17 @@ export default function CustomizePage() {
       setError(lang === "ar" ? "من فضلك اختار الحجم والحشو." : "Please select size and filling.");
       return;
     }
+    const missingRequired = fields.some((f) => f.required && !isDynamicFieldAnswered(f, state.dynamicAnswers[f.id]));
+    if (missingRequired) {
+      setError(lang === "ar" ? "في أسئلة إلزامية لسه محتاجة إجابة." : "Some required questions still need an answer.");
+      return;
+    }
     setError("");
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildMessage())}`;
-    window.open(url, "_blank");
+    window.open(buildWhatsAppUrl(buildMessage()), "_blank");
     setSent(true);
   };
 
-  const stepLabels = STEP_LABELS[lang];
+  const stepLabels = stepList.map((d) => (d.kind === "core" ? CORE_STEP_LABELS[lang][d.id] : d.field.label));
 
   return (
     <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
@@ -155,44 +297,61 @@ export default function CustomizePage() {
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-6 pt-8">
-        <div className="flex items-center">
+      <div className="max-w-3xl mx-auto pt-8">
+        {/* The step count is admin-controlled and unbounded (Same/Separate
+            Step custom questions can add any number of steps), so this
+            can no longer assume a fixed 8 items stretched to fill the
+            container — it scrolls horizontally within itself instead of
+            ever forcing the page wider than the viewport. */}
+        <div className="flex items-center overflow-x-auto px-6 pb-1">
           {stepLabels.map((label, i) => (
-            <div key={label} className="flex items-center flex-1 last:flex-none">
+            <div key={i} className="flex items-center shrink-0">
               <div className="flex flex-col items-center">
                 <button
                   onClick={() => goToStep(i)}
                   disabled={i > state.maxStepReached}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition shrink-0
                     ${i === state.step ? "bg-[#D96C7C] text-white ring-4 ring-[#F3C7CC] shadow" :
                       i < state.step ? "bg-[#633B2C] text-white cursor-pointer" :
                       i <= state.maxStepReached ? "bg-[#E8D8CC] text-[#633B2C] cursor-pointer" : "bg-[#F0E6DC] text-[#B8A99B] cursor-not-allowed"}`}
                 >
                   {i < state.step ? "✓" : i + 1}
                 </button>
-                <span className="text-[10px] mt-1.5 text-[#79665E] text-center max-w-[56px] leading-tight">{label}</span>
+                <span className="text-[10px] mt-1.5 text-[#79665E] text-center w-14 leading-tight">{label}</span>
               </div>
               {i < stepLabels.length - 1 && (
-                <div className={`h-[2px] flex-1 mx-1 ${i < state.step ? "bg-[#633B2C]" : "bg-[#E8D8CC]"}`} />
+                <div className={`h-[2px] w-8 shrink-0 mx-1 ${i < state.step ? "bg-[#633B2C]" : "bg-[#E8D8CC]"}`} />
               )}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-6 py-10">
+      <div className="md:hidden max-w-xl mx-auto px-6 pt-4">
+        <CakeProgress progress={progress} lang={lang} compact />
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-10 md:flex md:items-start md:gap-10">
+        <div className="hidden md:block md:w-56 shrink-0">
+          <CakeProgress progress={progress} lang={lang} />
+        </div>
+
+        <div className="flex-1 max-w-xl mx-auto md:mx-0">
         <div className="bg-[#FFFCF8] rounded-3xl p-6 md:p-8 shadow-[0_4px_20px_rgba(99,59,44,0.08)]">
-          {state.step === 0 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "occasion" && (
             <Step title={lang === "ar" ? "بنحتفل بإيه؟" : "What are we celebrating?"}>
               <div className="grid grid-cols-2 gap-3">
                 {OCCASIONS[lang].map((o) => (
                   <Chip key={o} selected={state.occasion === o} onClick={() => set({ occasion: o })}>{o}</Chip>
                 ))}
               </div>
+              <SameStepFields fields={sameStepFieldsByCore.occasion} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 1 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "tiers" && (
             <Step title={lang === "ar" ? "تحب التورتة كام دور؟" : "How many tiers would you like?"}>
               <div className="grid grid-cols-3 gap-3">
                 {[1, 2, 3].map((n) => (
@@ -201,10 +360,13 @@ export default function CustomizePage() {
                   </Chip>
                 ))}
               </div>
+              <SameStepFields fields={sameStepFieldsByCore.tiers} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 2 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "flavors" && (
             <Step title={lang === "ar" ? "خصص كل دور" : "Customize Each Tier"}>
               <div className="space-y-6">
                 {state.tiers.map((tier, i) => (
@@ -225,10 +387,13 @@ export default function CustomizePage() {
                   </div>
                 ))}
               </div>
+              <SameStepFields fields={sameStepFieldsByCore.flavors} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 3 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "sizeFilling" && (
             <Step title={lang === "ar" ? "الحجم والحشو" : "Size & Filling"}>
               <p className="text-sm font-semibold mb-2 text-[#633B2C]">{lang === "ar" ? "الحجم" : "Size"}</p>
               <div className="grid grid-cols-3 gap-2 mb-6">
@@ -243,10 +408,13 @@ export default function CustomizePage() {
                   placeholder={lang === "ar" ? "اكتب الحشو..." : "Describe the filling..."}
                   className="mt-3 w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
               )}
+              <SameStepFields fields={sameStepFieldsByCore.sizeFilling} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 4 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "colorsMessage" && (
             <Step title={lang === "ar" ? "الألوان والكتابة على التورتة" : "Colors & Cake Message"}>
               <div className="grid grid-cols-3 gap-2 mb-6">
                 {(lang === "ar" ? COLORS_AR : COLORS_EN).map((c) => (
@@ -262,10 +430,13 @@ export default function CustomizePage() {
               <input value={state.message} onChange={(e) => set({ message: e.target.value })}
                 placeholder={lang === "ar" ? "كل سنة وإنتِ طيبة يا سارة 🎂" : "Happy Birthday Sara 🎂"}
                 className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
+              <SameStepFields fields={sameStepFieldsByCore.colorsMessage} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 5 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "photo" && (
             <Step title={`${lang === "ar" ? "عندك شكل معين في بالك؟" : "Have a design in mind?"} (${lang === "ar" ? "اختياري" : "Optional"})`}>
               <p className="text-sm text-[#79665E] mb-4">
                 {lang === "ar" ? "ارفع صورة مرجعية للشكل أو الديكور اللي حابب التورتة تكون قريبة منه." : "Upload a reference photo and show us the decoration or style you're looking for."}
@@ -292,31 +463,60 @@ export default function CustomizePage() {
                 </div>
               )}
               <p className="text-xs text-[#B8945F] mt-3">{lang === "ar" ? "اختياري — ممكن تعدي الخطوة دي" : "Optional — you can skip this step"}</p>
+              <SameStepFields fields={sameStepFieldsByCore.photo} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 6 && (
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "notes" && (
             <Step title={lang === "ar" ? "في تفاصيل تانية تحب تقولها لنا؟" : "Anything else we should know?"}>
               <textarea value={state.notes} onChange={(e) => set({ notes: e.target.value })} rows={5}
                 placeholder={lang === "ar" ? "قول لنا أي تفاصيل إضافية عن التورتة اللي في بالك..." : "Tell us anything else about your dream cake..."}
                 className="w-full border border-[#E8D8CC] rounded-xl px-4 py-3 text-sm bg-white resize-none" />
+              <SameStepFields fields={sameStepFieldsByCore.notes} lang={lang} state={state}
+                setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
+                setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
             </Step>
           )}
 
-          {state.step === 7 && (
+          {currentDescriptor.kind === "separate" && (
+            <Step title={`${currentDescriptor.field.label}${!currentDescriptor.field.required ? ` (${lang === "ar" ? "اختياري" : "Optional"})` : ""}`}>
+              {currentDescriptor.field.description && (
+                <p className="text-sm text-[#79665E] mb-4">{currentDescriptor.field.description}</p>
+              )}
+              <DynamicFieldInput
+                field={currentDescriptor.field}
+                lang={lang}
+                answer={state.dynamicAnswers[currentDescriptor.field.id]}
+                showLabel={false}
+                onText={(v) => setDynamicText(currentDescriptor.field.id, v)}
+                onNumber={(v) => setDynamicNumber(currentDescriptor.field.id, v)}
+                onSingleSelect={(id) => setDynamicSingleSelect(currentDescriptor.field.id, id)}
+                onToggleMulti={(id) => toggleDynamicMultiSelect(currentDescriptor.field.id, id)}
+              />
+            </Step>
+          )}
+
+          {currentDescriptor.kind === "core" && currentDescriptor.id === "review" && (
             <Step title={lang === "ar" ? "تورتتك" : "Your Custom Cake"}>
               <div className="space-y-3 text-sm">
-                <ReviewRow label={lang === "ar" ? "المناسبة" : "Occasion"} value={state.occasion} onEdit={() => goToStep(0)} />
-                <ReviewRow label={lang === "ar" ? "عدد الأدوار" : "Tiers"} value={String(state.tierCount)} onEdit={() => goToStep(1)} />
+                <ReviewRow label={lang === "ar" ? "المناسبة" : "Occasion"} value={state.occasion} onEdit={() => goToStep(coreStepIndex("occasion"))} />
+                <ReviewRow label={lang === "ar" ? "عدد الأدوار" : "Tiers"} value={String(state.tierCount)} onEdit={() => goToStep(coreStepIndex("tiers"))} />
                 {state.tiers.map((t, i) => (
                   <ReviewRow key={i} label={lang === "ar" ? ["الدور الأول", "الدور الثاني", "الدور الثالث"][i] : `Tier ${i + 1}`}
-                    value={t.flavor === "other" ? t.otherFlavor || "" : FLAVORS.find((f) => f.key === t.flavor)?.[lang] || ""} onEdit={() => goToStep(2)} />
+                    value={t.flavor === "other" ? t.otherFlavor || "" : FLAVORS.find((f) => f.key === t.flavor)?.[lang] || ""} onEdit={() => goToStep(coreStepIndex("flavors"))} />
                 ))}
-                <ReviewRow label={lang === "ar" ? "الحجم" : "Size"} value={state.size} onEdit={() => goToStep(3)} />
-                <ReviewRow label={lang === "ar" ? "الحشو" : "Filling"} value={state.filling === "Other" || state.filling === "أخرى" ? state.fillingOther : state.filling} onEdit={() => goToStep(3)} />
-                <ReviewRow label={lang === "ar" ? "الألوان" : "Colors"} value={state.colors.map((c) => (c === "Other" || c === "لون آخر") ? state.colorOther : c).join(", ")} onEdit={() => goToStep(4)} />
-                {state.message && <ReviewRow label={lang === "ar" ? "الكتابة على التورتة" : "Cake Message"} value={state.message} onEdit={() => goToStep(4)} />}
-                {state.notes && <ReviewRow label={lang === "ar" ? "ملاحظات" : "Notes"} value={state.notes} onEdit={() => goToStep(6)} />}
+                <ReviewRow label={lang === "ar" ? "الحجم" : "Size"} value={state.size} onEdit={() => goToStep(coreStepIndex("sizeFilling"))} />
+                <ReviewRow label={lang === "ar" ? "الحشو" : "Filling"} value={state.filling === "Other" || state.filling === "أخرى" ? state.fillingOther : state.filling} onEdit={() => goToStep(coreStepIndex("sizeFilling"))} />
+                <ReviewRow label={lang === "ar" ? "الألوان" : "Colors"} value={state.colors.map((c) => (c === "Other" || c === "لون آخر") ? state.colorOther : c).join(", ")} onEdit={() => goToStep(coreStepIndex("colorsMessage"))} />
+                {state.message && <ReviewRow label={lang === "ar" ? "الكتابة على التورتة" : "Cake Message"} value={state.message} onEdit={() => goToStep(coreStepIndex("colorsMessage"))} />}
+                {state.notes && <ReviewRow label={lang === "ar" ? "ملاحظات" : "Notes"} value={state.notes} onEdit={() => goToStep(coreStepIndex("notes"))} />}
+                {fields.map((field) => {
+                  const text = resolveDynamicAnswerText(field, state.dynamicAnswers[field.id]);
+                  if (!text) return null;
+                  return <ReviewRow key={field.id} label={field.label} value={text} onEdit={() => goToStep(fieldStepIndex(field))} />;
+                })}
                 {state.refPhotoDataUrl && (
                   <div>
                     <p className="text-[#79665E] mb-1">{lang === "ar" ? "صورة مرجعية" : "Reference Photo"}</p>
@@ -340,17 +540,18 @@ export default function CustomizePage() {
               {lang === "ar" ? "رجوع" : "Back"}
             </button>
           )}
-          {state.step < 7 && (
+          {state.step < lastStepIndex && (
             <button onClick={goNext} disabled={!canContinue}
               className={`flex-1 rounded-full py-3 font-semibold text-sm transition ${canContinue ? "bg-[#D96C7C] text-white hover:bg-[#C55769]" : "bg-[#F0E6DC] text-[#B8A99B] cursor-not-allowed"}`}>
               {lang === "ar" ? "التالي" : "Continue"}
             </button>
           )}
-          {state.step === 7 && (
+          {state.step === lastStepIndex && (
             <button onClick={handleSend} className="flex-1 bg-[#25D366] text-white rounded-full py-3 font-semibold text-sm flex items-center justify-center gap-2">
               <WhatsAppIcon /> {lang === "ar" ? "ابعت تفاصيل تورتتي على واتساب" : "Send My Cake on WhatsApp"}
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>
@@ -386,11 +587,85 @@ function ReviewRow({ label, value, onEdit }: { label: string; value?: string | n
     </div>
   );
 }
-function WhatsAppIcon() {
+
+function DynamicFieldInput({
+  field, lang, answer, showLabel = true, onText, onNumber, onSingleSelect, onToggleMulti,
+}: {
+  field: PublicCustomizationField;
+  lang: Lang;
+  answer: DynamicAnswer | undefined;
+  showLabel?: boolean;
+  onText: (v: string) => void;
+  onNumber: (v: string) => void;
+  onSingleSelect: (id: string) => void;
+  onToggleMulti: (id: string) => void;
+}) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17.5 14.4c-.3-.1-1.6-.8-1.9-.9-.2-.1-.4-.1-.6.1-.2.2-.6.9-.8 1-.1.2-.3.2-.5.1-1.5-.7-2.5-1.3-3.5-3-.1-.2 0-.4.1-.5l.5-.6c.1-.2.1-.4 0-.5-.1-.2-.6-1.5-.8-2-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9 1-.9 2.3 0 1.4 1 2.7 1.2 2.9.2.2 1.9 3 4.7 4.1 2.3.9 2.8.7 3.3.7.5-.1 1.6-.7 1.8-1.3.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3z" />
-      <path d="M12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.3L2 22l4.9-1.3C8.4 21.5 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.2-.4-4.5-1.2l-.3-.2-3.1.8.8-3-.2-.3C3.9 14.9 3.4 13.5 3.4 12 3.4 7.3 7.3 3.4 12 3.4s8.6 3.9 8.6 8.6-3.9 8.6-8.6 8.6z" />
-    </svg>
+    <div>
+      {showLabel && (
+        <p className="font-semibold mb-1 text-sm text-[#633B2C]">
+          {field.label}
+          {!field.required && <span className="text-xs font-normal text-[#B8945F]"> ({lang === "ar" ? "اختياري" : "optional"})</span>}
+        </p>
+      )}
+      {showLabel && field.description && <p className="text-xs text-[#79665E] mb-2">{field.description}</p>}
+      {field.type === "text" && (
+        <input value={(answer as string) || ""} onChange={(e) => onText(e.target.value)}
+          className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
+      )}
+      {field.type === "number" && (
+        <input inputMode="decimal" value={(answer as string) || ""} onChange={(e) => onNumber(e.target.value)}
+          className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
+      )}
+      {field.type === "selection" && (
+        <>
+          {field.selectionMode === "multi" && (
+            <p className="text-xs text-[#B8945F] mb-2">{lang === "ar" ? "تقدر تختار أكتر من خيار" : "You can select more than one"}</p>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {(field.options ?? []).map((option) => {
+              const selected = field.selectionMode === "multi" ? Array.isArray(answer) && answer.includes(option.id) : answer === option.id;
+              return (
+                <Chip key={option.id} small selected={selected}
+                  onClick={() => (field.selectionMode === "multi" ? onToggleMulti(option.id) : onSingleSelect(option.id))}>
+                  {option.label}
+                </Chip>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SameStepFields({
+  fields, lang, state, setDynamicText, setDynamicNumber, setDynamicSingleSelect, toggleDynamicMultiSelect,
+}: {
+  fields: PublicCustomizationField[] | undefined;
+  lang: Lang;
+  state: OrderState;
+  setDynamicText: (fieldId: string, value: string) => void;
+  setDynamicNumber: (fieldId: string, raw: string) => void;
+  setDynamicSingleSelect: (fieldId: string, optionId: string) => void;
+  toggleDynamicMultiSelect: (fieldId: string, optionId: string) => void;
+}) {
+  if (!fields || fields.length === 0) return null;
+  return (
+    <div className="mt-6 pt-5 border-t border-dashed border-[#E8D8CC] space-y-6">
+      {fields.map((field, i) => (
+        <div key={field.id} className={i > 0 ? "pt-5 border-t border-dashed border-[#E8D8CC]" : ""}>
+          <DynamicFieldInput
+            field={field}
+            lang={lang}
+            answer={state.dynamicAnswers[field.id]}
+            onText={(v) => setDynamicText(field.id, v)}
+            onNumber={(v) => setDynamicNumber(field.id, v)}
+            onSingleSelect={(id) => setDynamicSingleSelect(field.id, id)}
+            onToggleMulti={(id) => toggleDynamicMultiSelect(field.id, id)}
+          />
+        </div>
+      ))}
+    </div>
   );
 }

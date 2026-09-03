@@ -6,6 +6,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { BakedCakesModule } from './baked-cakes/baked-cakes.module';
+import { CustomizationModule } from './customization/customization.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { BakedCakesModule } from './baked-cakes/baked-cakes.module';
     AuthModule,
     UsersModule,
     BakedCakesModule,
+    CustomizationModule,
   ],
   controllers: [HealthController],
 })
