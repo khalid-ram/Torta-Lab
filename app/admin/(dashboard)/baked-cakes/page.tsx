@@ -31,6 +31,27 @@ function InfoIcon() {
   );
 }
 
+function ChevronIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[#79665E]">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function FilterSelect(props: JSX.IntrinsicElements["select"]) {
+  const { className, ...rest } = props;
+  return (
+    <div className="relative">
+      <select
+        {...rest}
+        className={`appearance-none border border-[#E8D8CC] rounded-xl ps-3 pe-8 py-2.5 text-sm bg-white ${className ?? ""}`}
+      />
+      <ChevronIcon />
+    </div>
+  );
+}
+
 function CakeActionsMenu({
   cake,
   t,
@@ -213,21 +234,21 @@ export default function AdminBakedCakesPage() {
           placeholder={t.searchPlaceholder}
           className="w-full sm:max-w-xs border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white"
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value as api.StatusFilter)} className="border border-[#E8D8CC] rounded-xl px-3 py-2.5 text-sm bg-white">
+        <FilterSelect value={status} onChange={(e) => setStatus(e.target.value as api.StatusFilter)}>
           <option value="all">{t.statusLabel}: {t.all}</option>
           <option value="active">{t.statusActive}</option>
           <option value="paused">{t.statusPaused}</option>
-        </select>
-        <select value={availability} onChange={(e) => setAvailability(e.target.value as api.AvailabilityFilter)} className="border border-[#E8D8CC] rounded-xl px-3 py-2.5 text-sm bg-white">
+        </FilterSelect>
+        <FilterSelect value={availability} onChange={(e) => setAvailability(e.target.value as api.AvailabilityFilter)}>
           <option value="all">{t.availabilityLabel}: {t.all}</option>
           <option value="available">{t.available}</option>
           <option value="unavailable">{t.notAvailable}</option>
-        </select>
-        <select value={media} onChange={(e) => setMedia(e.target.value as api.MediaFilter)} className="border border-[#E8D8CC] rounded-xl px-3 py-2.5 text-sm bg-white">
+        </FilterSelect>
+        <FilterSelect value={media} onChange={(e) => setMedia(e.target.value as api.MediaFilter)}>
           <option value="all">{t.mediaLabel}: {t.all}</option>
           <option value="image">{t.mediaImage}</option>
           <option value="video">{t.mediaVideo}</option>
-        </select>
+        </FilterSelect>
       </div>
 
       {error && <p className="mt-4 text-sm font-medium text-[#D96C7C]">{error}</p>}

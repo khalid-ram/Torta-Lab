@@ -25,6 +25,27 @@ function KebabIcon() {
   );
 }
 
+function ChevronIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[#79665E]">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function FilterSelect(props: JSX.IntrinsicElements["select"]) {
+  const { className, ...rest } = props;
+  return (
+    <div className="relative">
+      <select
+        {...rest}
+        className={`appearance-none border border-[#E8D8CC] rounded-xl ps-3 pe-8 py-2.5 text-sm bg-white ${className ?? ""}`}
+      />
+      <ChevronIcon />
+    </div>
+  );
+}
+
 function UserActionsMenu({
   user,
   isSelf,
@@ -242,24 +263,16 @@ export default function AdminUsersPage() {
           placeholder={t.searchPlaceholder}
           className="w-full sm:max-w-xs border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white"
         />
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as adminApi.RoleFilter)}
-          className="border border-[#E8D8CC] rounded-xl px-3 py-2.5 text-sm bg-white"
-        >
+        <FilterSelect value={role} onChange={(e) => setRole(e.target.value as adminApi.RoleFilter)}>
           <option value="all">{t.roleLabel}: {t.all}</option>
           <option value="admin">{t.roleAdmin}</option>
           <option value="buyer">{t.roleBuyer}</option>
-        </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as adminApi.StatusFilter)}
-          className="border border-[#E8D8CC] rounded-xl px-3 py-2.5 text-sm bg-white"
-        >
+        </FilterSelect>
+        <FilterSelect value={status} onChange={(e) => setStatus(e.target.value as adminApi.StatusFilter)}>
           <option value="all">{t.statusLabel}: {t.all}</option>
           <option value="active">{t.statusActive}</option>
           <option value="inactive">{t.statusInactive}</option>
-        </select>
+        </FilterSelect>
       </div>
 
       {error && <p className="mt-4 text-sm font-medium text-[#D96C7C]">{error}</p>}
