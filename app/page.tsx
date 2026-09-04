@@ -2,9 +2,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "@/lib/auth/auth-context";
 import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
 import { WHATSAPP_NUMBER, buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
+import { PublicNavbar, CloseIcon } from "./navbar";
+import { SOCIAL_LINKS } from "./social-links";
+import { PUBLIC_CONTAINER_CLASS } from "./container";
 
 type Lang = "en" | "ar";
 
@@ -25,9 +27,32 @@ const T = {
     customizeYours: "Customize Yours",
     whatsappCakeMessage: (name: string) =>
       `Hello 👋\nI'd like to order this cake: ${name}\nPlease let me know the price and availability.`,
+    whyUs: {
+      title: "Why Torta Lab?",
+      values: [
+        { title: "Homemade Taste", body: "Made with care for a truly homemade taste." },
+        { title: "Fresh & Natural", body: "Fresh, natural ingredients with no harmful colors or artificial additives." },
+        { title: "Worth the Quality", body: "Quality ingredients at a fair price, without compromising on taste." },
+      ],
+    },
+    videoBanner: {
+      title: "Watch Your Cake Come to Life",
+      body: "Design your cake your way, and request a video capturing how it was made from the first step to the final touch.",
+      cta: "Customize Yours",
+    },
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
-    footer: { rights: "All rights reserved." },
+    footer: {
+      rights: "All rights reserved.",
+      social: { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", whatsapp: "WhatsApp", email: "Email" },
+      socialAria: {
+        facebook: "Torta Lab on Facebook",
+        instagram: "Torta Lab on Instagram",
+        tiktok: "Torta Lab on TikTok",
+        whatsapp: "Contact Torta Lab on WhatsApp",
+        email: "Email Torta Lab",
+      },
+    },
     customizeThis: "Customize This Cake",
   },
   ar: {
@@ -46,16 +71,38 @@ const T = {
     customizeYours: "صمم تورتتك",
     whatsappCakeMessage: (name: string) =>
       `مرحبًا 👋\nأريد طلب هذه التورتة: ${name}\nمن فضلك أخبرني بالسعر والتوفر.`,
+    whyUs: {
+      title: "ليه تورتا لاب؟",
+      values: [
+        { title: "طعم بيتي", body: "تورتة معمولة بعناية وطعم بيتي حقيقي." },
+        { title: "طبيعية وفريش", body: "مكونات فريش وطبيعية، بدون ألوان ضارة أو إضافات صناعية." },
+        { title: "جودة تستاهل", body: "خامات بجودة عالية وسعر مناسب من غير ما نضحي بالطعم." },
+      ],
+    },
+    videoBanner: {
+      title: "شوف تورتتك وهي بتتعمل",
+      body: "صمّم تورتتك بطريقتك، واطلب فيديو يوثّق مراحل تحضيرها من أول خطوة لحد اللمسة الأخيرة.",
+      cta: "صمّم تورتتك",
+    },
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
-    footer: { rights: "جميع الحقوق محفوظة." },
+    footer: {
+      rights: "جميع الحقوق محفوظة.",
+      social: { facebook: "فيسبوك", instagram: "إنستجرام", tiktok: "تيك توك", whatsapp: "واتساب", email: "البريد الإلكتروني" },
+      socialAria: {
+        facebook: "تورتا لاب على فيسبوك",
+        instagram: "تورتا لاب على إنستجرام",
+        tiktok: "تورتا لاب على تيك توك",
+        whatsapp: "تواصل مع تورتا لاب على واتساب",
+        email: "راسل تورتا لاب بالإيميل",
+      },
+    },
     customizeThis: "صمّم حاجة شبهها",
   },
 };
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ar");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [videoGalleryOpen, setVideoGalleryOpen] = useState(false);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const galleryVideoRef = useRef<HTMLVideoElement>(null);
@@ -64,7 +111,6 @@ export default function Home() {
   const [canScrollCakes, setCanScrollCakes] = useState(false);
   const dir = lang === "ar" ? "rtl" : "ltr";
   const t = T[lang];
-  const { state, logout } = useAuth();
 
   useEffect(() => {
     const el = cakesRowRef.current;
@@ -82,12 +128,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!mobileMenuOpen && !videoGalleryOpen) return;
+    if (!videoGalleryOpen) return;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [mobileMenuOpen, videoGalleryOpen]);
+  }, [videoGalleryOpen]);
 
   // Dynamic Baked Cake cards. Failure is swallowed on purpose: the
   // permanent Customize card must always render regardless of whether
@@ -142,104 +188,9 @@ export default function Home() {
 
   return (
     <div dir={dir} lang={lang} className="bg-white text-[#33221C] min-h-screen font-sans">
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-[#E8D8CC]">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex-1 flex items-center gap-2">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label={t.nav.menu}
-              className="flex md:hidden items-center justify-center w-9 h-9 rounded-full hover:bg-[#F8EEE5] transition -ms-1.5"
-            >
-              <MenuIcon />
-            </button>
-            <Logo lang={lang} />
-          </div>
+      <PublicNavbar lang={lang} onLangChange={setLang} />
 
-          <div className="hidden md:flex gap-8 text-sm font-medium text-[#633B2C]">
-            <a href="#" className="hover:text-[#D96C7C] transition-colors">{t.nav.home}</a>
-            <a href="#cakes" className="hover:text-[#D96C7C] transition-colors">{t.nav.cakes}</a>
-            <Link href="/customize" className="hover:text-[#D96C7C] transition-colors">{t.nav.customize}</Link>
-            <a href="#about" className="hover:text-[#D96C7C] transition-colors">{t.nav.about}</a>
-          </div>
-
-          <div className="flex-1 flex items-center justify-end gap-2 md:gap-3">
-            <button
-              onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-              className="hidden md:flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
-            >
-              {lang === "ar" ? (
-                <>
-                  <span aria-hidden="true">🇬🇧</span>
-                  EN
-                </>
-              ) : (
-                <>
-                  <span aria-hidden="true">🇪🇬</span>
-                  عربي
-                </>
-              )}
-            </button>
-            {state.status === "logged-in" && (
-              <UserMenu name={state.user.name} logoutLabel={t.nav.logout} onLogout={() => logout()} />
-            )}
-            {state.status !== "logged-in" && (
-              <div className="flex items-center gap-2 md:gap-3">
-                <Link href="/sign-in" className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.nav.signIn}</Link>
-                <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.nav.signUp}</Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            aria-label={t.nav.closeMenu}
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="absolute inset-y-0 start-0 w-72 max-w-[80vw] bg-white shadow-xl flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8D8CC]">
-              <Logo lang={lang} />
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label={t.nav.closeMenu}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F8EEE5] transition"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <nav className="flex flex-col px-5 py-4 text-[#633B2C] font-medium">
-              <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.home}</a>
-              <a href="#cakes" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.cakes}</a>
-              <Link href="/customize" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.nav.customize}</Link>
-              <a href="#about" onClick={() => setMobileMenuOpen(false)} className="py-3">{t.nav.about}</a>
-            </nav>
-            <div className="mt-auto px-5 py-5 border-t border-[#E8D8CC] flex items-center justify-center">
-              <button
-                onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-                className="flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
-              >
-                {lang === "ar" ? (
-                  <>
-                    <span aria-hidden="true">🇬🇧</span>
-                    EN
-                  </>
-                ) : (
-                  <>
-                    <span aria-hidden="true">🇪🇬</span>
-                    عربي
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <section className="mx-auto px-6 sm:px-10 md:px-16 pt-2 md:pt-4 pb-8 md:pb-14 max-w-[1800px]">
+      <section className={`pt-2 md:pt-4 pb-8 md:pb-14 ${PUBLIC_CONTAINER_CLASS}`}>
         <div className="relative rounded-[2rem] overflow-hidden h-[55vh] sm:h-[60vh] md:h-[65vh] max-h-[680px] min-h-[380px] shadow-[0_20px_60px_rgba(99,59,44,0.14)]">
           <Image
             src="/assets/hero-personalized-cake.jpg"
@@ -256,6 +207,21 @@ export default function Home() {
               <a href="#cakes" className="bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-lg text-[#33221C] px-6 sm:px-7 py-3 rounded-full font-semibold transition">{t.hero.secondary}</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 py-14 md:py-16">
+        <h2 className="text-3xl font-serif font-bold text-center">{t.whyUs.title}</h2>
+        <div className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-10">
+          {t.whyUs.values.map((v, i) => (
+            <div key={i} className="flex flex-col items-center text-center gap-3">
+              <span className="w-16 h-16 rounded-full bg-[#F8EEE5] flex items-center justify-center text-[#D96C7C]">
+                {WHY_US_ICONS[i]}
+              </span>
+              <h3 className="font-serif font-bold text-lg">{v.title}</h3>
+              <p className="text-sm text-[#79665E] max-w-[220px]">{v.body}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -358,6 +324,19 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="max-w-6xl mx-auto px-6 py-4">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#4A2C1E] to-[#633B2C] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
+          <div className="flex-1 text-center md:text-start">
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white leading-snug">{t.videoBanner.title}</h2>
+            <p className="mt-4 text-[#F3E6D8] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
+            <Link href="/customize" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
+              {t.videoBanner.cta}
+            </Link>
+          </div>
+          <MakingOfIllustration />
+        </div>
+      </section>
+
       {videoGalleryOpen && videoCakes[activeVideoIndex] && (
         <div
           className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center"
@@ -405,93 +384,24 @@ export default function Home() {
             <Link href="/customize">{t.nav.customize}</Link>
             <a href="#about">{t.nav.about}</a>
           </div>
-          <p className="mt-4 text-sm opacity-80">+20 114 835 0515 · Instagram · Facebook</p>
-          <p className="mt-2 text-xs opacity-60">© {new Date().getFullYear()} {lang === "ar" ? "تورتا لاب" : "TORTA LAB"}. {t.footer.rights}</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 mt-5">
+            {SOCIAL_LINKS.map(({ key, href, external, Icon }) => (
+              <a
+                key={key}
+                href={href}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                aria-label={t.footer.socialAria[key]}
+                className="flex items-center gap-1.5 text-sm text-[#F8EEE5]/90 hover:text-[#F3C7CC] focus-visible:text-[#F3C7CC] transition rounded-full px-2.5 py-2 -mx-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[#F3C7CC]"
+              >
+                <Icon />
+                {t.footer.social[key]}
+              </a>
+            ))}
+          </div>
+          <p className="mt-5 text-xs opacity-60">© {new Date().getFullYear()} {lang === "ar" ? "تورتا لاب" : "TORTA LAB"}. {t.footer.rights}</p>
         </div>
       </footer>
     </div>
-  );
-}
-
-function Logo({ lang }: { lang: Lang }) {
-  return (
-    <div className="flex flex-col leading-none">
-      <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
-      {lang === "ar" && (
-        <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">TORTA LAB</span>
-      )}
-    </div>
-  );
-}
-
-function UserMenu({ name, logoutLabel, onLogout }: { name: string; logoutLabel: string; onLogout: () => void }) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex items-center gap-1.5 md:gap-2 pe-1.5 ps-1 py-1 rounded-full hover:bg-[#F8EEE5] transition"
-      >
-        <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-xs md:text-sm font-semibold shrink-0">
-          {name.charAt(0).toUpperCase()}
-        </span>
-        <span className="hidden md:inline text-sm font-medium text-[#633B2C]">{name}</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          className={`text-[#633B2C] shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute end-0 mt-2 w-40 bg-white border border-[#E8D8CC] rounded-xl shadow-lg overflow-hidden z-50">
-          <button
-            onClick={() => {
-              setOpen(false);
-              onLogout();
-            }}
-            className="w-full text-start px-4 py-2.5 text-sm font-medium text-[#633B2C] hover:bg-[#F8EEE5] transition"
-          >
-            {logoutLabel}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MenuIcon({ className = "text-[#633B2C]" }: { className?: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
-      <path d="M3 6h18" />
-      <path d="M3 12h18" />
-      <path d="M3 18h18" />
-    </svg>
-  );
-}
-
-function CloseIcon({ className = "text-[#633B2C]" }: { className?: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
-      <path d="M18 6L6 18" />
-      <path d="M6 6l12 12" />
-    </svg>
   );
 }
 
@@ -500,6 +410,58 @@ function PlayIcon({ className }: { className?: string }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className={className}>
       <path d="M8 5v14l11-7z" />
     </svg>
+  );
+}
+
+function WhiskIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v5" />
+      <path d="M8 7c-1 4 1 10 4 10s5-6 4-10" />
+      <path d="M9.5 7c-.6 3.5.6 8 2.5 8s3.1-4.5 2.5-8" />
+      <path d="M12 17v5" />
+    </svg>
+  );
+}
+
+function LeafIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 19c9 0 14-6 14-15-9 0-15 5-15 14-.2 1.6.4 1.2 1 1z" />
+      <path d="M6 18c2.5-3.5 6-7 10-10" />
+    </svg>
+  );
+}
+
+function RibbonIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4.3" />
+      <path d="M9.3 11.7L7.5 20l4.5-2.7 4.5 2.7-1.8-8.3" />
+    </svg>
+  );
+}
+
+const WHY_US_ICONS = [<WhiskIcon key="whisk" />, <LeafIcon key="leaf" />, <RibbonIcon key="ribbon" />];
+
+function MakingOfIllustration() {
+  return (
+    <div className="relative shrink-0 w-40 h-40 sm:w-48 sm:h-48 flex items-end justify-center">
+      <span className="absolute top-0 start-0 w-6 h-6 border-t-2 border-s-2 border-white/40 rounded-tl-lg" />
+      <span className="absolute top-0 end-0 w-6 h-6 border-t-2 border-e-2 border-white/40 rounded-tr-lg" />
+      <span className="absolute bottom-0 start-0 w-6 h-6 border-b-2 border-s-2 border-white/40 rounded-bl-lg" />
+      <span className="absolute bottom-0 end-0 w-6 h-6 border-b-2 border-e-2 border-white/40 rounded-br-lg" />
+
+      <span className="absolute top-3 end-3 flex items-center gap-1.5 bg-black/30 rounded-full px-2 py-1">
+        <span className="w-2 h-2 rounded-full bg-[#E8574A] motion-safe:animate-pulse" />
+        <span className="text-[10px] font-semibold text-white/90">REC</span>
+      </span>
+
+      <div className="relative flex flex-col items-center pb-4">
+        <div className="w-16 h-10 rounded-xl bg-gradient-to-b from-[#F3C7CC] to-[#D96C7C]" />
+        <div className="w-24 h-12 rounded-xl bg-gradient-to-b from-[#E9C99A] to-[#D9A86C] -mt-1" />
+      </div>
+    </div>
   );
 }
 

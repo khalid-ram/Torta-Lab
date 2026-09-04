@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import * as api from "@/lib/api/customization";
 import { useAdminUi } from "../admin-context";
 import { adminT } from "../translations";
+import { CORE_FLOW, PLACEABLE_CORE_STEP_KEYS, type CoreInputDefinition, type CoreStepKey } from "../../../core-flow";
 
 type T = (typeof adminT)["en"]["customization"];
+type Lang = "en" | "ar";
 
 function KebabIcon() {
   return (
@@ -25,6 +27,44 @@ function ArrowIcon({ direction }: { direction: "up" | "down" }) {
       <path d="M12 19V5M5 12l7-7 7 7" />
     </svg>
   );
+}
+
+function LockIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function coreStepTitle(step: (typeof CORE_FLOW)[number], lang: Lang) {
+  return lang === "ar" ? step.titleAr : step.titleEn;
+}
+function coreInputLabel(input: CoreInputDefinition, lang: Lang) {
+  return lang === "ar" ? input.labelAr : input.labelEn;
+}
+function coreInputTypeLabel(input: CoreInputDefinition, t: T) {
+  return {
+    selection: t.typeSelectionShort,
+    "multi-select": t.typeMultiSelectShort,
+    text: t.typeTextShort,
+    textarea: t.typeTextareaShort,
+    file: t.typeFileShort,
+  }[input.type];
+}
+
+function Badge({ tone, children }: { tone: "core" | "custom" | "required" | "optional" | "active" | "paused" | "locked"; children: React.ReactNode }) {
+  const styles: Record<string, string> = {
+    core: "bg-[#F3EAE0] text-[#79665E]",
+    custom: "bg-[#F3C7CC]/40 text-[#633B2C]",
+    required: "bg-[#FCE8E6] text-[#B3261E]",
+    optional: "bg-[#E8F5E9] text-[#2E7D32]",
+    active: "bg-[#E8F5E9] text-[#2E7D32]",
+    paused: "bg-[#F3EAE0] text-[#79665E]",
+    locked: "bg-[#F3EAE0] text-[#633B2C]",
+  };
+  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[tone]}`}>{children}</span>;
 }
 
 function FieldActionsMenu({
@@ -90,18 +130,6 @@ function FieldActionsMenu({
   );
 }
 
-const emptyForm: FormState = {
-  label: "",
-  description: "",
-  isRequired: true,
-  fieldType: "text",
-  selectionMode: "single",
-  options: ["", ""],
-  placementType: "separate_step",
-  coreStepKey: "occasion",
-  afterCoreStepKey: "occasion",
-};
-
 interface FormState {
   label: string;
   description: string;
@@ -112,6 +140,21 @@ interface FormState {
   placementType: api.PlacementType;
   coreStepKey: api.CoreStepKey;
   afterCoreStepKey: api.CoreStepKey;
+}
+
+function makeEmptyForm(initial?: Partial<FormState>): FormState {
+  return {
+    label: "",
+    description: "",
+    isRequired: true,
+    fieldType: "text",
+    selectionMode: "single",
+    options: ["", ""],
+    placementType: "separate_step",
+    coreStepKey: "occasion",
+    afterCoreStepKey: PLACEABLE_CORE_STEP_KEYS[PLACEABLE_CORE_STEP_KEYS.length - 1],
+    ...initial,
+  };
 }
 
 export default function AdminCustomizationPage() {
@@ -134,6 +177,7 @@ export default function AdminCustomizationPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingField, setEditingField] = useState<api.AdminField | null>(null);
+  const [formInitial, setFormInitial] = useState<Partial<FormState> | undefined>(undefined);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,8 +200,48 @@ export default function AdminCustomizationPage() {
     void load();
   }, [load]);
 
-  const openCreate = () => { setEditingField(null); setFormOpen(true); };
-  const openEdit = (field: api.AdminField) => { setEditingField(field); setFormOpen(true); };
+  const sameStepByCore = useMemo(() => {
+    const map: Partial<Record<CoreStepKey, api.AdminField[]>> = {};
+    for (const f of fields) if (f.placementType === "core_step" && f.coreStepKey) (map[f.coreStepKey] ??= []).push(f);
+    for (const key of Object.keys(map) as CoreStepKey[]) map[key]!.sort((a, b) => a.order - b.order);
+    return map;
+  }, [fields]);
+
+  const separateByCore = useMemo(() => {
+    const map: Partial<Record<CoreStepKey, api.AdminField[]>> = {};
+    for (const f of fields) if (f.placementType === "separate_step" && f.afterCoreStepKey) (map[f.afterCoreStepKey] ??= []).push(f);
+    for (const key of Object.keys(map) as CoreStepKey[]) map[key]!.sort((a, b) => a.order - b.order);
+    return map;
+  }, [fields]);
+
+  // Sequential page numbers across the whole flow: each Core Step, then
+  // any Separate Step custom pages anchored after it — the exact order
+  // the customer sees in /customize.
+  const pageNumberById = useMemo(() => {
+    const map: Record<string, number> = {};
+    let n = 1;
+    for (const step of CORE_FLOW) {
+      map[step.key] = n++;
+      for (const f of separateByCore[step.key as CoreStepKey] ?? []) map[f.id] = n++;
+    }
+    return map;
+  }, [separateByCore]);
+
+  const openAddInput = (coreStepKey: CoreStepKey) => {
+    setEditingField(null);
+    setFormInitial({ placementType: "core_step", coreStepKey });
+    setFormOpen(true);
+  };
+  const openAddStep = () => {
+    setEditingField(null);
+    setFormInitial({ placementType: "separate_step" });
+    setFormOpen(true);
+  };
+  const openEdit = (field: api.AdminField) => {
+    setEditingField(field);
+    setFormInitial(undefined);
+    setFormOpen(true);
+  };
 
   const handleMove = async (field: api.AdminField, direction: "up" | "down") => {
     try {
@@ -186,21 +270,8 @@ export default function AdminCustomizationPage() {
     }
   };
 
-  const typeLabel = (ft: api.FieldType) => (ft === "text" ? t.typeText : ft === "number" ? t.typeNumber : t.typeSelection);
-  const coreStepLabel = (key: api.CoreStepKey) => t.coreSteps[key];
-  const placementLabel = (field: api.AdminField) =>
-    field.placementType === "core_step"
-      ? t.placementSame(coreStepLabel(field.coreStepKey as api.CoreStepKey))
-      : t.placementSeparate(coreStepLabel(field.afterCoreStepKey as api.CoreStepKey));
-
-  // Move Up/Down operates within a field's own placement group (siblings
-  // on the same Core Step, or siblings anchored after the same Core
-  // Step), so boundaries are per-group, not global across the whole list.
   const groupKey = (field: api.AdminField) => `${field.placementType}:${field.coreStepKey ?? field.afterCoreStepKey}`;
-  const isFirstInGroup = (field: api.AdminField) => {
-    const group = fields.filter((f) => groupKey(f) === groupKey(field));
-    return group[0]?.id === field.id;
-  };
+  const isFirstInGroup = (field: api.AdminField) => fields.filter((f) => groupKey(f) === groupKey(field))[0]?.id === field.id;
   const isLastInGroup = (field: api.AdminField) => {
     const group = fields.filter((f) => groupKey(f) === groupKey(field));
     return group[group.length - 1]?.id === field.id;
@@ -227,6 +298,68 @@ export default function AdminCustomizationPage() {
     </div>
   );
 
+  const fieldTypeLabel = (f: api.AdminField) => (f.fieldType === "text" ? t.typeText : f.fieldType === "number" ? t.typeNumber : t.typeSelection);
+
+  const customRow = (field: api.AdminField) => (
+    <div key={field.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#F3EAE0] last:border-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-medium text-[#33221C] text-sm">{field.label}</span>
+          <Badge tone="custom">{t.sourceCustom}</Badge>
+          <Badge tone={field.isRequired ? "required" : "optional"}>{field.isRequired ? t.required : t.optional}</Badge>
+          <Badge tone={field.status === "active" ? "active" : "paused"}>{field.status === "active" ? t.statusActive : t.statusPaused}</Badge>
+        </div>
+        <p className="text-xs text-[#79665E] mt-0.5">{fieldTypeLabel(field)}</p>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        {moveButtons(field)}
+        <FieldActionsMenu
+          field={field}
+          t={t}
+          open={openMenuId === field.id}
+          onToggle={toggleMenu}
+          onClose={closeMenu}
+          onEdit={() => openEdit(field)}
+          onToggleStatus={() => setConfirmTarget({ field, action: "status" })}
+          onDelete={() => setConfirmTarget({ field, action: "delete" })}
+        />
+      </div>
+    </div>
+  );
+
+  const coreRow = (input: CoreInputDefinition) => (
+    <div key={input.key} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#F3EAE0] last:border-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-medium text-[#33221C] text-sm">{coreInputLabel(input, lang)}</span>
+          <Badge tone="core">{t.sourceCore}</Badge>
+          <Badge tone={input.required ? "required" : "optional"}>{input.required ? t.required : t.optional}</Badge>
+          {input.required && (
+            <span className="group relative inline-flex">
+              <Badge tone="locked">
+                <LockIcon /> {t.locked}
+              </Badge>
+              <span className="pointer-events-none absolute bottom-full start-0 mb-2 w-60 rounded-lg bg-[#33221C] text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition z-10 normal-case font-normal leading-relaxed">
+                {t.lockedTooltip}
+              </span>
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-[#79665E] mt-0.5">{coreInputTypeLabel(input, t)}</p>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div dir={dir}>
+        <h1 className="text-2xl font-serif font-bold text-[#33221C]">{t.title}</h1>
+        <p className="text-sm text-[#79665E] mt-1">{t.subtitle}</p>
+        <p className="mt-8 text-sm text-[#79665E]">{adminT[lang].loading}</p>
+      </div>
+    );
+  }
+
   return (
     <div dir={dir}>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -234,52 +367,53 @@ export default function AdminCustomizationPage() {
           <h1 className="text-2xl font-serif font-bold text-[#33221C]">{t.title}</h1>
           <p className="text-sm text-[#79665E] mt-1">{t.subtitle}</p>
         </div>
-        <button onClick={openCreate} className="bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-5 py-2.5 font-semibold text-sm transition whitespace-nowrap">
-          {t.addField}
+        <button onClick={openAddStep} className="bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-5 py-2.5 font-semibold text-sm transition whitespace-nowrap">
+          {t.addStep}
         </button>
       </div>
 
       {error && <p className="mt-4 text-sm font-medium text-[#D96C7C]">{error}</p>}
 
-      {loading ? (
-        <p className="mt-8 text-sm text-[#79665E]">{adminT[lang].loading}</p>
-      ) : fields.length === 0 ? (
-        <div className="mt-10 text-center">
-          <p className="text-sm text-[#79665E]">{t.empty}</p>
-          <button onClick={openCreate} className="mt-4 bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-5 py-2.5 font-semibold text-sm transition">
-            {t.addField}
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden md:block mt-6 border border-[#E8D8CC] rounded-2xl">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#E8D8CC] bg-[#FFFCF8] text-start text-[#79665E]">
-                  <th className="px-4 py-3 text-start font-semibold">{t.colOrder}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colField}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colType}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colRequired}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colPlacement}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colStatus}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{t.colActions}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fields.map((field) => (
-                  <tr key={field.id} className="border-b border-[#F3EAE0] last:border-0 align-top">
-                    <td className="px-4 py-3">{moveButtons(field)}</td>
-                    <td className="px-4 py-3 font-medium text-[#33221C] max-w-[220px]">{field.label}</td>
-                    <td className="px-4 py-3 text-[#79665E]">{typeLabel(field.fieldType)}</td>
-                    <td className="px-4 py-3 text-[#79665E]">{field.isRequired ? t.required : t.optional}</td>
-                    <td className="px-4 py-3 text-[#79665E]">{placementLabel(field)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${field.status === "active" ? "bg-[#E8F5E9] text-[#2E7D32]" : "bg-[#F3EAE0] text-[#79665E]"}`}>
-                        {field.status === "active" ? t.statusActive : t.statusPaused}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+      <div className="mt-6 space-y-5">
+        {CORE_FLOW.map((step) => {
+          const customSameStep = sameStepByCore[step.key as CoreStepKey] ?? [];
+          const separateAfter = separateByCore[step.key as CoreStepKey] ?? [];
+          const inputCount = step.inputs.length + customSameStep.length;
+
+          return (
+            <div key={step.key}>
+              <div className="border border-[#E8D8CC] rounded-2xl overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#FFFCF8] border-b border-[#E8D8CC]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-semibold text-[#B8945F]">{t.pageLabel(pageNumberById[step.key])}</span>
+                    <h2 className="font-serif font-bold text-[#33221C]">{coreStepTitle(step, lang)}</h2>
+                    <Badge tone="core">{t.sourceCore}</Badge>
+                    <span className="text-xs text-[#79665E]">{t.inputsCount(inputCount)}</span>
+                  </div>
+                  {step.key !== "review" && (
+                    <button onClick={() => openAddInput(step.key as CoreStepKey)} className="text-sm font-semibold text-[#633B2C] hover:text-[#D96C7C] transition">
+                      + {t.addInput}
+                    </button>
+                  )}
+                </div>
+                <div>
+                  {step.inputs.map((input) => coreRow(input))}
+                  {customSameStep.map((field) => customRow(field))}
+                  {inputCount === 0 && step.key !== "review" && <p className="px-4 py-4 text-sm text-[#79665E]">{t.empty}</p>}
+                </div>
+              </div>
+
+              {separateAfter.map((field) => (
+                <div key={field.id} className="border border-[#E8D8CC] rounded-2xl overflow-hidden mt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#FFFCF8] border-b border-[#E8D8CC]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xs font-semibold text-[#B8945F] shrink-0">{t.pageLabel(pageNumberById[field.id])}</span>
+                      <h2 className="font-serif font-bold text-[#33221C] truncate">{field.label}</h2>
+                      <Badge tone="custom">{t.sourceCustom}</Badge>
+                      <span className="text-xs text-[#79665E] shrink-0">{t.inputsCount(1)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {moveButtons(field)}
                       <FieldActionsMenu
                         field={field}
                         t={t}
@@ -290,52 +424,32 @@ export default function AdminCustomizationPage() {
                         onToggleStatus={() => setConfirmTarget({ field, action: "status" })}
                         onDelete={() => setConfirmTarget({ field, action: "delete" })}
                       />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile stacked cards */}
-          <div className="md:hidden mt-6 flex flex-col gap-3">
-            {fields.map((field) => (
-              <div key={field.id} className="border border-[#E8D8CC] rounded-2xl p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="font-semibold text-[#33221C] block truncate">{field.label}</span>
-                    <p className="text-sm text-[#79665E] mt-0.5">{typeLabel(field.fieldType)} · {field.isRequired ? t.required : t.optional}</p>
+                    </div>
                   </div>
-                  <FieldActionsMenu
-                    field={field}
-                    t={t}
-                    open={openMenuId === field.id}
-                    onToggle={toggleMenu}
-                    onClose={closeMenu}
-                    onEdit={() => openEdit(field)}
-                    onToggleStatus={() => setConfirmTarget({ field, action: "status" })}
-                    onDelete={() => setConfirmTarget({ field, action: "delete" })}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${field.status === "active" ? "bg-[#E8F5E9] text-[#2E7D32]" : "bg-[#F3EAE0] text-[#79665E]"}`}>
-                      {field.status === "active" ? t.statusActive : t.statusPaused}
-                    </span>
-                    <span className="text-xs text-[#79665E]">{placementLabel(field)}</span>
+                  <div>
+                    <div className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge tone={field.isRequired ? "required" : "optional"}>{field.isRequired ? t.required : t.optional}</Badge>
+                          <Badge tone={field.status === "active" ? "active" : "paused"}>{field.status === "active" ? t.statusActive : t.statusPaused}</Badge>
+                        </div>
+                        <p className="text-xs text-[#79665E] mt-0.5">{fieldTypeLabel(field)}</p>
+                      </div>
+                    </div>
                   </div>
-                  {moveButtons(field)}
                 </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+              ))}
+            </div>
+          );
+        })}
+      </div>
 
       {formOpen && (
         <FieldFormModal
           t={t}
+          lang={lang}
           field={editingField}
+          initial={formInitial}
           onClose={() => setFormOpen(false)}
           onSaved={async () => { setFormOpen(false); await load(); }}
         />
@@ -347,7 +461,9 @@ export default function AdminCustomizationPage() {
           <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 text-center">
             <p className="font-serif font-bold text-lg text-[#33221C]">
               {confirmTarget.action === "delete"
-                ? t.confirmDeleteTitle
+                ? confirmTarget.field.placementType === "separate_step"
+                  ? t.confirmDeleteStepTitle
+                  : t.confirmDeleteTitle
                 : confirmTarget.field.status === "active"
                   ? t.confirmPauseTitle
                   : t.confirmActivateTitle}
@@ -372,12 +488,16 @@ export default function AdminCustomizationPage() {
 
 function FieldFormModal({
   t,
+  lang,
   field,
+  initial,
   onClose,
   onSaved,
 }: {
   t: T;
+  lang: Lang;
   field: api.AdminField | null;
+  initial?: Partial<FormState>;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -395,7 +515,7 @@ function FieldFormModal({
           coreStepKey: field.coreStepKey ?? "occasion",
           afterCoreStepKey: field.afterCoreStepKey ?? "occasion",
         }
-      : emptyForm,
+      : makeEmptyForm(initial),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -604,8 +724,8 @@ function FieldFormModal({
                   disabled={saving}
                   className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white disabled:opacity-60"
                 >
-                  {api.CORE_STEP_KEYS.map((key) => (
-                    <option key={key} value={key}>{t.coreSteps[key]}</option>
+                  {CORE_FLOW.filter((s) => s.key !== "review").map((step) => (
+                    <option key={step.key} value={step.key}>{coreStepTitle(step, lang)}</option>
                   ))}
                 </select>
               </div>
@@ -618,8 +738,8 @@ function FieldFormModal({
                   disabled={saving}
                   className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white disabled:opacity-60"
                 >
-                  {api.CORE_STEP_KEYS.map((key) => (
-                    <option key={key} value={key}>{t.coreSteps[key]}</option>
+                  {CORE_FLOW.filter((s) => s.key !== "review").map((step) => (
+                    <option key={step.key} value={step.key}>{coreStepTitle(step, lang)}</option>
                   ))}
                 </select>
               </div>

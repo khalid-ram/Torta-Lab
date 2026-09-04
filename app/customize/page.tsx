@@ -1,37 +1,14 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
 import { getPublicCustomization, type CoreStepKey, type PublicCustomizationField } from "@/lib/api/customization";
+import { PublicNavbar } from "../navbar";
 import { CakeProgress } from "./cake-progress";
-
-type Lang = "en" | "ar";
-type Flavor = "chocolate" | "cream" | "half" | "other" | null;
-type Tier = { flavor: Flavor; otherFlavor?: string };
-// A dynamic field's answer: a single string for text/number/single-select
-// (the select case stores the chosen option id), or a string[] of option
-// ids for multi-select. Resolved to display labels only when needed
-// (Review step, WhatsApp message) via the live config already in state.
-type DynamicAnswer = string | string[];
-type OrderState = {
-  step: number; maxStepReached: number;
-  occasion: string | null;
-  tierCount: 1 | 2 | 3; tiers: Tier[];
-  size: string | null;
-  filling: string | null; fillingOther: string;
-  colors: string[]; colorOther: string;
-  message: string; notes: string;
-  refPhotoDataUrl: string | null;
-  dynamicAnswers: Record<string, DynamicAnswer>;
-};
-
-const STORAGE_KEY = "torta-lab-order-state";
-
-const defaultState: OrderState = {
-  step: 0, maxStepReached: 0, occasion: null, tierCount: 1, tiers: [{ flavor: null }],
-  size: null, filling: null, fillingOther: "", colors: [], colorOther: "",
-  message: "", notes: "", refPhotoDataUrl: null, dynamicAnswers: {},
-};
+import { buildCakeVisualModel } from "./cake-visual-model";
+import {
+  type Lang, type Flavor, type Tier, type OrderState, type DynamicAnswer,
+  STORAGE_KEY, defaultState, OCCASIONS, FLAVORS, SIZES, FILLING_VALUES, COLOR_VALUES,
+} from "./customize-options";
 
 // The 7 placeable Core Steps, in their fixed order, plus the final
 // Review page. These stable ids are the integration points a Custom
@@ -67,22 +44,6 @@ function resolveDynamicAnswerText(field: PublicCustomizationField, answer: Dynam
   const labels = ids.map((id) => field.options?.find((o) => o.id === id)?.label).filter((l): l is string => !!l);
   return labels.length ? labels.join(", ") : null;
 }
-
-const OCCASIONS = {
-  en: ["Birthday", "Wedding", "Engagement", "Anniversary", "Other", "No Occasion"],
-  ar: ["عيد ميلاد", "فرح", "خطوبة", "ذكرى زواج", "مناسبة أخرى", "بدون مناسبة"],
-};
-const FLAVORS: { key: Exclude<Flavor, null>; en: string; ar: string }[] = [
-  { key: "chocolate", en: "Chocolate", ar: "شوكولاتة" },
-  { key: "cream", en: "Cream", ar: "كريمة" },
-  { key: "half", en: "Half Cream / Half Chocolate", ar: "نص كريمة / نص شوكولاتة" },
-  { key: "other", en: "Other", ar: "أخرى" },
-];
-const SIZES = { en: ["Small", "Medium", "Large"], ar: ["صغير", "متوسط", "كبير"] };
-const FILLINGS_EN = ["Vanilla Cream", "Chocolate", "Strawberry", "Caramel", "Other"];
-const FILLINGS_AR = ["كريمة فانيليا", "شوكولاتة", "فراولة", "كراميل", "أخرى"];
-const COLORS_EN = ["White", "Chocolate", "Pink", "Blue", "Beige", "Other"];
-const COLORS_AR = ["أبيض", "شوكولاتة", "وردي", "أزرق", "بيج", "لون آخر"];
 
 export default function CustomizePage() {
   const [lang, setLang] = useState<Lang>("ar");
@@ -229,7 +190,7 @@ export default function CustomizePage() {
     }
     return checks;
   }, [state, fields]);
-  const progress = requiredChecks.filter(Boolean).length / requiredChecks.length;
+  const cakeVisual = useMemo(() => buildCakeVisualModel(state, requiredChecks), [state, requiredChecks]);
 
   const handleFile = (file: File) => {
     const reader = new FileReader();
@@ -286,18 +247,13 @@ export default function CustomizePage() {
 
   return (
     <div dir={dir} lang={lang} className="bg-[#FFF9F3] text-[#33221C] min-h-screen font-sans">
-      <nav className="sticky top-0 z-50 bg-[#FFF9F3]/95 backdrop-blur border-b border-[#E8D8CC]">
-        <div className="max-w-3xl mx-auto flex items-center justify-between px-6 py-4">
-          <Link href="/" className="text-sm font-semibold text-[#633B2C]">{lang === "ar" ? "→ رجوع للرئيسية" : "← Back to Home"}</Link>
-          <span className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "Torta Lab"}</span>
-          <div className="flex items-center bg-[#F8EEE5] border border-[#E8D8CC] rounded-full p-1">
-            <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "en" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>EN</button>
-            <button onClick={() => setLang("ar")} className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${lang === "ar" ? "bg-[#D96C7C] text-white shadow-sm" : "text-[#79665E]"}`}>AR</button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar lang={lang} onLangChange={setLang} />
 
-      <div className="max-w-3xl mx-auto pt-8">
+      {/* Step navigation is desktop-only now: on mobile the animated cake
+          itself is the primary progress indicator (see CakeProgress
+          below), so a second traditional progress UI would be redundant
+          and was removed there entirely per product direction. */}
+      <div className="hidden md:block max-w-3xl mx-auto pt-8">
         {/* The step count is admin-controlled and unbounded (Same/Separate
             Step custom questions can add any number of steps), so this
             can no longer assume a fixed 8 items stretched to fill the
@@ -328,12 +284,12 @@ export default function CustomizePage() {
       </div>
 
       <div className="md:hidden max-w-xl mx-auto px-6 pt-4">
-        <CakeProgress progress={progress} lang={lang} compact />
+        <CakeProgress model={cakeVisual} lang={lang} compact />
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-10 md:flex md:items-start md:gap-10">
         <div className="hidden md:block md:w-56 shrink-0">
-          <CakeProgress progress={progress} lang={lang} />
+          <CakeProgress model={cakeVisual} lang={lang} />
         </div>
 
         <div className="flex-1 max-w-xl mx-auto md:mx-0">
@@ -401,7 +357,7 @@ export default function CustomizePage() {
               </div>
               <p className="text-sm font-semibold mb-2 text-[#633B2C]">{lang === "ar" ? "الحشو" : "Filling"}</p>
               <div className="grid grid-cols-2 gap-2">
-                {(lang === "ar" ? FILLINGS_AR : FILLINGS_EN).map((f) => <Chip key={f} small selected={state.filling === f} onClick={() => set({ filling: f })}>{f}</Chip>)}
+                {FILLING_VALUES[lang].map((f) => <Chip key={f} small selected={state.filling === f} onClick={() => set({ filling: f })}>{f}</Chip>)}
               </div>
               {(state.filling === "Other" || state.filling === "أخرى") && (
                 <input value={state.fillingOther} onChange={(e) => set({ fillingOther: e.target.value })}
@@ -417,7 +373,7 @@ export default function CustomizePage() {
           {currentDescriptor.kind === "core" && currentDescriptor.id === "colorsMessage" && (
             <Step title={lang === "ar" ? "الألوان والكتابة على التورتة" : "Colors & Cake Message"}>
               <div className="grid grid-cols-3 gap-2 mb-6">
-                {(lang === "ar" ? COLORS_AR : COLORS_EN).map((c) => (
+                {COLOR_VALUES[lang].map((c) => (
                   <Chip key={c} small selected={state.colors.includes(c)} onClick={() => toggleColor(c)}>{c}</Chip>
                 ))}
               </div>

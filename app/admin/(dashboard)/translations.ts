@@ -162,10 +162,25 @@ export const adminT: Record<Lang, {
     coreStepPlaceholder: string;
     insertAfterLabel: string;
     insertAfterPlaceholder: string;
-    coreSteps: Record<"occasion" | "tiers" | "flavors" | "sizeFilling" | "colorsMessage" | "photo" | "notes", string>;
     save: string;
     saving: string;
     close: string;
+    // Step/page-based flow view
+    addStep: string;
+    addStepTitle: string;
+    addInput: string;
+    pageLabel: (n: number) => string;
+    sourceCore: string;
+    sourceCustom: string;
+    inputsCount: (n: number) => string;
+    locked: string;
+    lockedTooltip: string;
+    typeSelectionShort: string;
+    typeMultiSelectShort: string;
+    typeTextShort: string;
+    typeTextareaShort: string;
+    typeFileShort: string;
+    confirmDeleteStepTitle: string;
   };
 }> = {
   en: {
@@ -339,18 +354,24 @@ export const adminT: Record<Lang, {
       coreStepPlaceholder: "Select a step",
       insertAfterLabel: "Insert After",
       insertAfterPlaceholder: "Select a step",
-      coreSteps: {
-        occasion: "Occasion",
-        tiers: "Tiers",
-        flavors: "Flavors",
-        sizeFilling: "Size & Filling",
-        colorsMessage: "Colors & Message",
-        photo: "Photo",
-        notes: "Notes",
-      },
       save: "Save",
       saving: "Saving...",
       close: "Close",
+      addStep: "Add Step",
+      addStepTitle: "Add Step",
+      addInput: "Add Input",
+      pageLabel: (n) => `Page ${n}`,
+      sourceCore: "Core",
+      sourceCustom: "Custom",
+      inputsCount: (n) => `${n} ${n === 1 ? "input" : "inputs"}`,
+      locked: "Locked",
+      lockedTooltip: "Required core fields are part of the essential cake flow and cannot be edited.",
+      typeSelectionShort: "Selection",
+      typeMultiSelectShort: "Multi Select",
+      typeTextShort: "Text",
+      typeTextareaShort: "Long Text",
+      typeFileShort: "Photo Upload",
+      confirmDeleteStepTitle: "Delete this step?",
     },
   },
   ar: {
@@ -524,18 +545,24 @@ export const adminT: Record<Lang, {
       coreStepPlaceholder: "اختار خطوة",
       insertAfterLabel: "أضف بعد",
       insertAfterPlaceholder: "اختار خطوة",
-      coreSteps: {
-        occasion: "المناسبة",
-        tiers: "الأدوار",
-        flavors: "النكهات",
-        sizeFilling: "الحجم والحشو",
-        colorsMessage: "الألوان والكتابة",
-        photo: "الصورة",
-        notes: "ملاحظات",
-      },
       save: "حفظ",
       saving: "جارٍ الحفظ...",
       close: "إغلاق",
+      addStep: "إضافة خطوة",
+      addStepTitle: "إضافة خطوة",
+      addInput: "إضافة حقل",
+      pageLabel: (n) => `الصفحة ${n}`,
+      sourceCore: "أساسي",
+      sourceCustom: "مخصص",
+      inputsCount: (n) => `${n} ${n === 1 ? "حقل" : "حقول"}`,
+      locked: "مقفول",
+      lockedTooltip: "الحقول الأساسية المطلوبة جزء من خطوات تصميم التورتة ولا يمكن تعديلها.",
+      typeSelectionShort: "اختيار",
+      typeMultiSelectShort: "اختيار متعدد",
+      typeTextShort: "نص",
+      typeTextareaShort: "نص طويل",
+      typeFileShort: "رفع صورة",
+      confirmDeleteStepTitle: "هل تريد حذف هذه الخطوة؟",
     },
   },
 };
