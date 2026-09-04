@@ -7,7 +7,7 @@
 
 import { COLOR_VALUES, FILLING_VALUES, OCCASIONS, SIZE_VALUES, type Lang, type OrderState } from "./customize-options";
 
-export type OccasionDecoration = "birthday" | "wedding" | "engagement" | "other";
+export type OccasionDecoration = "birthday" | "wedding" | "engagement" | "anniversary" | "other";
 export type TierVisualFlavor = "chocolate" | "cream" | "half" | "other" | "undecided";
 
 export interface TierVisual {
@@ -23,6 +23,7 @@ export interface CakeVisualModel {
   accentColors: string[]; // resolved hex values for chosen colors (unresolvable "Other" entries are skipped)
   fillingColor: string | null; // resolved hex for the filling stripe, or null if no filling chosen yet
   occasionDecoration: OccasionDecoration;
+  occasionSelected: boolean; // true only once the customer has actually chosen one of the 6 real options — distinct from the "other" fallback bucket, which also covers "not chosen yet"
 }
 
 // OCCASIONS/SIZE_VALUES/etc. are stored per-language display arrays that
@@ -38,10 +39,8 @@ function indexOfEitherLang(value: string | null, lists: { en: string[]; ar: stri
 }
 
 // index: 0 Birthday, 1 Wedding, 2 Engagement, 3 Anniversary, 4 Other, 5 No Occasion.
-// Anniversary is bucketed with Wedding (the closest thematic match among
-// the real existing options — both are couple/marriage occasions); Other
-// and No Occasion both fall back to the neutral "other" decoration.
-const OCCASION_DECORATION_BY_INDEX: OccasionDecoration[] = ["birthday", "wedding", "engagement", "wedding", "other", "other"];
+// Other and No Occasion both fall back to the neutral "other" decoration.
+const OCCASION_DECORATION_BY_INDEX: OccasionDecoration[] = ["birthday", "wedding", "engagement", "anniversary", "other", "other"];
 
 const SIZE_SCALE_BY_INDEX = [0.86, 1, 1.14]; // Small, Medium, Large
 
@@ -62,6 +61,7 @@ export function buildCakeVisualModel(state: OrderState, requiredChecks: boolean[
   const progress = requiredChecks.length ? requiredChecks.filter(Boolean).length / requiredChecks.length : 0;
 
   const occasionIndex = indexOfEitherLang(state.occasion, OCCASIONS);
+  const occasionSelected = occasionIndex !== -1;
   const occasionDecoration = OCCASION_DECORATION_BY_INDEX[occasionIndex] ?? "other";
 
   const sizeIndex = indexOfEitherLang(state.size, SIZE_VALUES);
@@ -83,6 +83,7 @@ export function buildCakeVisualModel(state: OrderState, requiredChecks: boolean[
     accentColors,
     fillingColor,
     occasionDecoration,
+    occasionSelected,
   };
 }
 

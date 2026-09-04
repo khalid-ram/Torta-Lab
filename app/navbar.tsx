@@ -130,7 +130,7 @@ export function PublicNavbar({ lang, onLangChange }: { lang: Lang; onLangChange:
           <div className="hidden md:flex gap-8 text-sm font-medium text-[#633B2C]">
             <Link href="/" className="hover:text-[#D96C7C] transition-colors">{t.home}</Link>
             <Link href="/#cakes" className="hover:text-[#D96C7C] transition-colors">{t.cakes}</Link>
-            <Link href="/customize" className="hover:text-[#D96C7C] transition-colors">{t.customize}</Link>
+            <Link href="/customize?new=1" className="hover:text-[#D96C7C] transition-colors">{t.customize}</Link>
             <Link href="/#about" className="hover:text-[#D96C7C] transition-colors">{t.about}</Link>
           </div>
 
@@ -186,7 +186,7 @@ export function PublicNavbar({ lang, onLangChange }: { lang: Lang; onLangChange:
             <nav className="flex flex-col px-5 py-4 text-[#633B2C] font-medium">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.home}</Link>
               <Link href="/#cakes" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.cakes}</Link>
-              <Link href="/customize" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.customize}</Link>
+              <Link href="/customize?new=1" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.customize}</Link>
               <Link href="/#about" onClick={() => setMobileMenuOpen(false)} className="py-3">{t.about}</Link>
             </nav>
             <div className="mt-auto px-5 py-5 border-t border-[#E8D8CC] flex items-center justify-center">

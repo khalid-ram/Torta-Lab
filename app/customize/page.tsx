@@ -51,18 +51,38 @@ export default function CustomizePage() {
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [fields, setFields] = useState<PublicCustomizationField[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const dir = lang === "ar" ? "rtl" : "ltr";
 
+  // Every public "Customize" CTA that means "start a new cake" links here
+  // with ?new=1 (see app/page.tsx and app/navbar.tsx) — this page is the
+  // one place session init/reset happens, so no CTA component ever touches
+  // localStorage itself. A ?new=1 load wipes the previous OrderState
+  // (occasion, tiers, size, filling, colors, message, notes, photo,
+  // dynamic answers, step, review/WhatsApp data — all of it, since all of
+  // it lives in this one object) and starts fully blank; anything else
+  // (plain "/customize", including a refresh mid-flow) restores the active
+  // session from localStorage untouched. The query param is stripped right
+  // after so a later refresh on the same tab doesn't re-trigger a reset.
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setState({ ...defaultState, ...JSON.parse(saved), refPhotoDataUrl: null }); } catch {}
+    const isNewSession = new URLSearchParams(window.location.search).get("new") === "1";
+    if (isNewSession) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
+      setState(defaultState);
+      window.history.replaceState(null, "", "/customize");
+    } else {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try { setState({ ...defaultState, ...JSON.parse(saved), refPhotoDataUrl: null }); } catch {}
+      }
     }
+    setHydrated(true);
   }, []);
   useEffect(() => {
+    if (!hydrated) return;
     const { refPhotoDataUrl, ...rest } = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
-  }, [state]);
+  }, [state, hydrated]);
 
   useEffect(() => {
     let cancelled = false;

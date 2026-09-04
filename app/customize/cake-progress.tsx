@@ -79,17 +79,37 @@ function tierSlots(tierCount: 1 | 2 | 3, sizeScale: number, compact: boolean) {
   return { slots, stackTop };
 }
 
+function BirthdayCandle({ size, tall }: { size: number; tall: boolean }) {
+  const height = (tall ? 20 : 14) * size;
+  return (
+    <div className="relative flex flex-col items-center">
+      <span
+        className="block rounded-full bg-[#FFB84D] motion-safe:animate-[cakeFlame_1.1s_ease-in-out_infinite] motion-reduce:animate-none"
+        style={{ width: 5 * size + 3, height: 7 * size + 4 }}
+      />
+      <span className="block bg-[#F8EEE5]" style={{ width: 2, height }} />
+    </div>
+  );
+}
+
 function OccasionTopper({ decoration, compact }: { decoration: OccasionDecoration; compact: boolean }) {
   const size = compact ? 0.72 : 1;
   if (decoration === "birthday") {
     return (
-      <div className="relative flex flex-col items-center">
-        <span
-          className="block rounded-full bg-[#FFB84D] motion-safe:animate-[cakeFlame_1.1s_ease-in-out_infinite] motion-reduce:animate-none"
-          style={{ width: 5 * size + 3, height: 7 * size + 4 }}
-        />
-        <span className="block bg-[#F8EEE5]" style={{ width: 2, height: 16 * size }} />
+      <div className="flex items-end gap-1.5">
+        <BirthdayCandle size={size * 0.82} tall={false} />
+        <BirthdayCandle size={size} tall />
+        <BirthdayCandle size={size * 0.82} tall={false} />
       </div>
+    );
+  }
+  if (decoration === "anniversary") {
+    return (
+      <svg width={24 * size} height={24 * size} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="9.5" r="6" fill="#FBEAE0" stroke="#D9A86C" strokeWidth="1.1" />
+        <path d="M12 5.6l1.05 3.2 3.35.05-2.7 2 1.02 3.25L12 12.1l-2.72 1.95 1.02-3.25-2.7-2 3.35-.05z" fill="#D9A86C" />
+        <path d="M9 15l-1.6 5.4 2.7-1.3 1.9 2.1 1.9-2.1 2.7 1.3L15 15" stroke="#D9A86C" strokeWidth="1.1" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
     );
   }
   if (decoration === "wedding") {
@@ -125,6 +145,66 @@ function OccasionTopper({ decoration, compact }: { decoration: OccasionDecoratio
   );
 }
 
+// The occasion's identity color, used for the immediate glow + badge below
+// — separate from OccasionTopper's per-decoration illustration since this
+// needs one flat accent color rather than a multi-color mini-scene.
+function occasionAccentColor(decoration: OccasionDecoration): string {
+  switch (decoration) {
+    case "birthday":
+      return "#FFB84D";
+    case "wedding":
+      return "#F3C7CC";
+    case "engagement":
+      return "#D96C7C";
+    case "anniversary":
+      return "#D9A86C";
+    case "other":
+    default:
+      return "#D9A86C";
+  }
+}
+
+// A small, stable-per-occasion glyph for the identity badge — reads at a
+// glance, independent of language (uses the same internal `decoration` key
+// OccasionTopper uses, never a translated display string).
+function OccasionBadgeIcon({ decoration }: { decoration: OccasionDecoration }) {
+  if (decoration === "birthday") {
+    return (
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="5" r="2.4" fill="#FFB84D" />
+        <path d="M12 8v12M8 20h8" stroke="#79665E" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (decoration === "wedding") {
+    return (
+      <svg width="12" height="10" viewBox="0 0 24 20" fill="none">
+        <circle cx="9" cy="10" r="6.2" stroke="#D9A86C" strokeWidth="1.6" />
+        <circle cx="16" cy="10" r="6.2" stroke="#D9A86C" strokeWidth="1.6" />
+      </svg>
+    );
+  }
+  if (decoration === "engagement") {
+    return (
+      <svg width="12" height="11" viewBox="0 0 24 22" fill="#D96C7C">
+        <path d="M12 20s-8-5-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15 12 20 12 20z" />
+      </svg>
+    );
+  }
+  if (decoration === "anniversary") {
+    return (
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="#D9A86C">
+        <path d="M12 3l1.8 5.6 5.9.05-4.75 3.5 1.8 5.65L12 14.3l-4.75 3.5 1.8-5.65-4.75-3.5 5.9-.05z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="#D9A86C">
+      <path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" />
+    </svg>
+  );
+}
+
 export function CakeProgress({ model, lang, compact }: { model: CakeVisualModel; lang: Lang; compact?: boolean }) {
   const p = Math.max(0, Math.min(1, model.progress));
   const percent = Math.round(p * 100);
@@ -137,9 +217,37 @@ export function CakeProgress({ model, lang, compact }: { model: CakeVisualModel;
   const { slots, stackTop } = tierSlots(model.tierCount, model.sizeScale, !!compact);
   const topWidth = slots[model.tierCount - 1]?.width ?? (compact ? 60 : 110);
 
+  const accentColor = occasionAccentColor(model.occasionDecoration);
+
   return (
     <div className={`flex flex-col items-center justify-end select-none ${compact ? "" : "sticky top-24"}`}>
       <div className="relative w-full flex items-end justify-center" style={{ height }}>
+        {/* Immediate occasion identity cue: appears the moment an occasion
+            is chosen, well before progress reaches the full topper stage
+            below — "my cake is becoming a Birthday cake" from step one,
+            not just at the end. A soft color wash (not a cartoon prop)
+            keeps it premium; it strengthens gradually as progress grows. */}
+        {model.occasionSelected && (
+          <div
+            className="absolute rounded-full blur-2xl transition-opacity duration-700 motion-reduce:transition-none"
+            style={{
+              width: (compact ? 130 : 240) * model.sizeScale,
+              height: (compact ? 130 : 240) * model.sizeScale,
+              bottom: -10,
+              background: accentColor,
+              opacity: 0.12 + p * 0.16,
+            }}
+          />
+        )}
+        {model.occasionSelected && (
+          <div
+            className="absolute top-0 end-0 flex items-center justify-center rounded-full bg-white/85 backdrop-blur-sm border border-[#E8D8CC] shadow-sm transition-opacity duration-500 motion-reduce:transition-none"
+            style={{ width: compact ? 22 : 28, height: compact ? 22 : 28 }}
+          >
+            <OccasionBadgeIcon decoration={model.occasionDecoration} />
+          </div>
+        )}
+
         {model.completed && (
           <>
             <Sparkle className="top-2 start-[20%]" delay="0s" />

@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
 import { WHATSAPP_NUMBER, buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
 import { PublicNavbar, CloseIcon } from "./navbar";
@@ -156,6 +156,49 @@ export default function Home() {
 
   const videoCakes = bakedCakes.filter((cake) => cake.mediaType === "video");
 
+  // Mobile-only priority: newest ACTIVE video cake first, then the rest of
+  // bakedCakes in their existing (already active-only, newest-first) order.
+  // bakedCakes is exactly what the backend returns for /baked-cakes — active
+  // only, ordered by created_at desc — so the first video-type entry here
+  // already IS the most recently uploaded active video; no extra fetch or
+  // hardcoded cake is needed. Desktop is untouched (see mobileOrderById use
+  // below): it keeps the plain backend order.
+  const mobileBakedCakes = useMemo(() => {
+    const videoIndex = bakedCakes.findIndex((cake) => cake.mediaType === "video");
+    if (videoIndex <= 0) return bakedCakes;
+    const promoted = bakedCakes[videoIndex];
+    const rest = bakedCakes.filter((_, i) => i !== videoIndex);
+    return [promoted, ...rest];
+  }, [bakedCakes]);
+  // Same JSX/section renders both breakpoints — only which array feeds the
+  // .map() below differs, so DOM order (and therefore scroll-snap/initial
+  // scroll position) is always correct for the active breakpoint, with no
+  // separate mobile/desktop implementation.
+  const [isMobileOurWork, setIsMobileOurWork] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileOurWork(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const displayCakes = isMobileOurWork ? mobileBakedCakes : bakedCakes;
+
+  // Root cause of the "wrong card shows first" bug: this row is
+  // dir="rtl" + snap-mandatory, and browsers don't reliably default an
+  // RTL snap-scroll container to its start (Chromium lands it at the far
+  // (negative) end of the scroll range instead) — so without this, the
+  // LAST card (the static Customize card) is what's actually in view on
+  // load, regardless of DOM/array order. Forcing scrollLeft back to 0
+  // (the true start in both RTL and LTR) whenever the card list changes
+  // — initial load, or the mobile/desktop list swapping at the md
+  // breakpoint — is the fix, not a cosmetic scroll nudge.
+  useEffect(() => {
+    const el = cakesRowRef.current;
+    if (!el || displayCakes.length === 0) return;
+    el.scrollLeft = 0;
+  }, [displayCakes]);
+
   useEffect(() => {
     if (!videoGalleryOpen) return;
     const video = galleryVideoRef.current;
@@ -203,7 +246,7 @@ export default function Home() {
           <div className="absolute inset-0 flex flex-col items-center justify-center pt-28 sm:pt-0 gap-5 sm:gap-6 px-6 sm:px-10">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold leading-tight whitespace-normal text-center text-black [text-shadow:0_2px_20px_rgba(255,255,255,0.7)]">{t.hero.title}</h1>
             <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-              <Link href="/customize" className="bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white px-6 sm:px-7 py-3 rounded-full font-semibold transition shadow-[0_8px_24px_rgba(0,0,0,0.15)]">{t.hero.primary}</Link>
+              <Link href="/customize?new=1" className="bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white px-6 sm:px-7 py-3 rounded-full font-semibold transition shadow-[0_8px_24px_rgba(0,0,0,0.15)]">{t.hero.primary}</Link>
               <a href="#cakes" className="bg-white/55 hover:bg-white/70 border border-white/60 backdrop-blur-lg text-[#33221C] px-6 sm:px-7 py-3 rounded-full font-semibold transition">{t.hero.secondary}</a>
             </div>
           </div>
@@ -215,7 +258,7 @@ export default function Home() {
           <div className="flex-1 text-center md:text-start">
             <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C] leading-snug">{t.videoBanner.title}</h2>
             <p className="mt-4 text-[#633B2C] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
-            <Link href="/customize" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
+            <Link href="/customize?new=1" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
               {t.videoBanner.cta}
             </Link>
           </div>
@@ -252,7 +295,7 @@ export default function Home() {
           ref={cakesRowRef}
           className="mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 md:justify-center"
         >
-          {bakedCakes.map((cake) => (
+          {displayCakes.map((cake) => (
             <div
               key={cake.id}
               className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-black"
@@ -298,7 +341,7 @@ export default function Home() {
                   </a>
                 ) : (
                   <Link
-                    href="/customize"
+                    href="/customize?new=1"
                     className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
                   >
                     {t.customizeYours}
@@ -308,14 +351,17 @@ export default function Home() {
             </div>
           ))}
 
-          {/* Static, frontend-owned card — never backed by baked_cakes data. */}
+          {/* Static, frontend-owned card — never backed by baked_cakes data.
+              Always last: it must never be the first card when an active
+              cake (video or otherwise) exists, but still needs its own
+              place in the priority list. */}
           <div className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-[#F3C7CC]/40 flex flex-col items-center justify-center text-center p-5">
             <span className="text-[#D96C7C] text-6xl leading-none">+</span>
             <h3 className="font-serif font-bold text-xl mt-4">{lang === "ar" ? "صمّم تورتتك" : "Build Your Own Cake"}</h3>
             <p className="text-sm text-[#79665E] mt-2">
               {lang === "ar" ? "اختار كل تفصيلة بنفسك واعمل تورتة مخصوصة ليك." : "Choose every detail and build a cake made just for you."}
             </p>
-            <Link href="/customize" className="w-full text-center mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 px-4 font-semibold text-sm">
+            <Link href="/customize?new=1" className="w-full text-center mt-5 bg-[#D96C7C] text-white rounded-full py-2.5 px-4 font-semibold text-sm">
               {t.customizeThis}
             </Link>
           </div>
@@ -381,7 +427,7 @@ export default function Home() {
           <p className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</p>
           <div className="flex justify-center gap-6 mt-4 text-sm">
             <a href="#cakes">{t.nav.cakes}</a>
-            <Link href="/customize">{t.nav.customize}</Link>
+            <Link href="/customize?new=1">{t.nav.customize}</Link>
             <a href="#about">{t.nav.about}</a>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 mt-5">
