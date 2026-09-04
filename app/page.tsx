@@ -325,10 +325,10 @@ export default function Home() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 py-4">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#4A2C1E] to-[#633B2C] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#F2EFEA] to-[#E7E2DB] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
           <div className="flex-1 text-center md:text-start">
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white leading-snug">{t.videoBanner.title}</h2>
-            <p className="mt-4 text-[#F3E6D8] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C] leading-snug">{t.videoBanner.title}</h2>
+            <p className="mt-4 text-[#633B2C] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
             <Link href="/customize" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
               {t.videoBanner.cta}
             </Link>
@@ -447,10 +447,10 @@ const WHY_US_ICONS = [<WhiskIcon key="whisk" />, <LeafIcon key="leaf" />, <Ribbo
 function MakingOfIllustration() {
   return (
     <div className="relative shrink-0 w-40 h-40 sm:w-48 sm:h-48 flex items-end justify-center">
-      <span className="absolute top-0 start-0 w-6 h-6 border-t-2 border-s-2 border-white/40 rounded-tl-lg" />
-      <span className="absolute top-0 end-0 w-6 h-6 border-t-2 border-e-2 border-white/40 rounded-tr-lg" />
-      <span className="absolute bottom-0 start-0 w-6 h-6 border-b-2 border-s-2 border-white/40 rounded-bl-lg" />
-      <span className="absolute bottom-0 end-0 w-6 h-6 border-b-2 border-e-2 border-white/40 rounded-br-lg" />
+      <span className="absolute top-0 start-0 w-6 h-6 border-t-2 border-s-2 border-[#79665E]/45 rounded-tl-lg" />
+      <span className="absolute top-0 end-0 w-6 h-6 border-t-2 border-e-2 border-[#79665E]/45 rounded-tr-lg" />
+      <span className="absolute bottom-0 start-0 w-6 h-6 border-b-2 border-s-2 border-[#79665E]/45 rounded-bl-lg" />
+      <span className="absolute bottom-0 end-0 w-6 h-6 border-b-2 border-e-2 border-[#79665E]/45 rounded-br-lg" />
 
       <span className="absolute top-3 end-3 flex items-center gap-1.5 bg-black/30 rounded-full px-2 py-1">
         <span className="w-2 h-2 rounded-full bg-[#E8574A] motion-safe:animate-pulse" />
