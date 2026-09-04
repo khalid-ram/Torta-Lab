@@ -30,9 +30,9 @@ const T = {
     whyUs: {
       title: "Why Torta Lab?",
       values: [
-        { title: "Homemade Taste", body: "Made with care for a truly homemade taste." },
-        { title: "Fresh & Natural", body: "Fresh, natural ingredients with no harmful colors or artificial additives." },
-        { title: "Worth the Quality", body: "Quality ingredients at a fair price, without compromising on taste." },
+        { title: "Homemade Taste", body: "Made with care, just like home." },
+        { title: "Fresh & Natural", body: "Fresh ingredients, no harmful additives." },
+        { title: "Worth the Quality", body: "Great quality at a fair price." },
       ],
     },
     videoBanner: {
@@ -190,7 +190,7 @@ export default function Home() {
     <div dir={dir} lang={lang} className="bg-white text-[#33221C] min-h-screen font-sans">
       <PublicNavbar lang={lang} onLangChange={setLang} />
 
-      <section className={`pt-2 md:pt-4 pb-8 md:pb-14 ${PUBLIC_CONTAINER_CLASS}`}>
+      <section className={`pt-2 md:pt-4 pb-6 md:pb-10 ${PUBLIC_CONTAINER_CLASS}`}>
         <div className="relative rounded-[2rem] overflow-hidden h-[55vh] sm:h-[60vh] md:h-[65vh] max-h-[680px] min-h-[380px] shadow-[0_20px_60px_rgba(99,59,44,0.14)]">
           <Image
             src="/assets/hero-personalized-cake.jpg"
@@ -210,22 +210,20 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 py-14 md:py-16">
-        <h2 className="text-3xl font-serif font-bold text-center">{t.whyUs.title}</h2>
-        <div className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-10">
-          {t.whyUs.values.map((v, i) => (
-            <div key={i} className="flex flex-col items-center text-center gap-3">
-              <span className="w-16 h-16 rounded-full bg-[#F8EEE5] flex items-center justify-center text-[#D96C7C]">
-                {WHY_US_ICONS[i]}
-              </span>
-              <h3 className="font-serif font-bold text-lg">{v.title}</h3>
-              <p className="text-sm text-[#79665E] max-w-[220px]">{v.body}</p>
-            </div>
-          ))}
+      <section className="max-w-6xl mx-auto px-6 py-6 md:py-8">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#F7F4F1] to-[#F0ECE7] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
+          <div className="flex-1 text-center md:text-start">
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C] leading-snug">{t.videoBanner.title}</h2>
+            <p className="mt-4 text-[#633B2C] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
+            <Link href="/customize" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
+              {t.videoBanner.cta}
+            </Link>
+          </div>
+          <MakingOfIllustration />
         </div>
       </section>
 
-      <section id="cakes" className="group relative max-w-6xl mx-auto px-6 py-14">
+      <section id="cakes" className="group relative max-w-6xl mx-auto px-6 py-10 md:py-12">
         <h2 className="text-3xl font-serif font-bold text-center">{t.cakes.title}</h2>
         <p className="text-center text-[#79665E] mt-3 max-w-xl mx-auto">{t.cakes.subtitle}</p>
 
@@ -324,19 +322,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 py-4">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#F2EFEA] to-[#E7E2DB] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
-          <div className="flex-1 text-center md:text-start">
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C] leading-snug">{t.videoBanner.title}</h2>
-            <p className="mt-4 text-[#633B2C] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
-            <Link href="/customize" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
-              {t.videoBanner.cta}
-            </Link>
-          </div>
-          <MakingOfIllustration />
-        </div>
-      </section>
-
       {videoGalleryOpen && videoCakes[activeVideoIndex] && (
         <div
           className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center"
@@ -366,7 +351,22 @@ export default function Home() {
         </div>
       )}
 
-      <section id="about" className="max-w-2xl mx-auto px-6 py-14 text-center">
+      <section className="max-w-6xl mx-auto px-6 py-10 md:py-12">
+        <h2 className="text-3xl font-serif font-bold text-center">{t.whyUs.title}</h2>
+        <div className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-10">
+          {t.whyUs.values.map((v, i) => (
+            <div key={i} className="flex flex-col items-center text-center gap-3">
+              <span className="w-16 h-16 rounded-full bg-[#F8EEE5] flex items-center justify-center text-[#D96C7C]">
+                {WHY_US_ICONS[i]}
+              </span>
+              <h3 className="font-serif font-bold text-lg">{v.title}</h3>
+              <p className="text-sm text-[#79665E] max-w-[220px]">{v.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="about" className="max-w-2xl mx-auto px-6 py-10 md:py-12 text-center">
         <h2 className="text-3xl font-serif font-bold">{t.about.title}</h2>
         <p className="text-[#79665E] mt-4 leading-relaxed">{t.about.body}</p>
       </section>
@@ -376,7 +376,7 @@ export default function Home() {
         <WhatsAppIcon /> {t.whatsappFloat}
       </a>
 
-      <footer className="bg-[#633B2C] text-[#F8EEE5] py-10 mt-6">
+      <footer className="bg-[#633B2C] text-[#F8EEE5] py-10 mt-4">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <p className="text-xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</p>
           <div className="flex justify-center gap-6 mt-4 text-sm">

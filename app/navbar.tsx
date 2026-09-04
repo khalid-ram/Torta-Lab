@@ -32,12 +32,12 @@ function MenuIcon({ className = "text-[#633B2C]" }: { className?: string }) {
 
 function Logo({ lang }: { lang: Lang }) {
   return (
-    <div className="flex flex-col leading-none">
+    <Link href="/" className="flex flex-col leading-none">
       <span className="text-2xl font-serif font-bold">{lang === "ar" ? "تورتا لاب" : "TORTA LAB"}</span>
       {lang === "ar" && (
         <span className="text-[11px] font-medium tracking-wide text-[#79665E] mt-0.5">TORTA LAB</span>
       )}
-    </div>
+    </Link>
   );
 }
 
