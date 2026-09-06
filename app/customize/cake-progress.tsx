@@ -279,25 +279,26 @@ export function CakeProgress({ model, lang, compact }: { model: CakeVisualModel;
           />
         ))}
 
-        {/* Filling stripe between tiers, once a filling is chosen */}
+        {/* Filling line inside each tier — its OWN chosen filling, not one
+            shared value, since filling is now a per-tier decision. */}
         {showDetails &&
-          model.fillingColor &&
-          (() => {
-            const fillingColor = model.fillingColor;
-            return slots.slice(0, Math.max(model.tierCount - 1, 0)).map((slot, i) => (
+          slots.map((slot, i) => {
+            const fillingHex = model.tiers[i]?.fillingHex;
+            if (!slot.visible || !fillingHex) return null;
+            return (
               <div
                 key={`filling-${i}`}
                 className="absolute rounded-full transition-opacity duration-500 motion-reduce:transition-none"
                 style={{
-                  width: slots[i + 1]?.width ?? slot.width,
+                  width: slot.width * 0.9,
                   height: 3,
-                  bottom: slots[i + 1]?.bottom ?? slot.bottom,
-                  background: fillingColor,
+                  bottom: slot.bottom + slot.height * 0.42,
+                  background: fillingHex,
                   opacity: 0.85,
                 }}
               />
-            ));
-          })()}
+            );
+          })}
 
         {/* Frosting wrap + drip, layered over the top tier */}
         <div

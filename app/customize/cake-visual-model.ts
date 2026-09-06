@@ -12,6 +12,7 @@ export type ShapeKind = "circle" | "triangle" | "heart" | "rectangle" | "undecid
 
 export interface TierVisual {
   colorHex: string | null; // null = no color chosen yet (or an unresolvable "Other") — renders as a neutral undecided tone
+  fillingHex: string | null; // this tier's own filling — null if not chosen yet (or unresolvable "Other")
 }
 
 export interface CakeVisualModel {
@@ -21,7 +22,6 @@ export interface CakeVisualModel {
   tierCount: 1 | 2 | 3;
   tiers: TierVisual[];
   sizeScale: number; // subtle proportion multiplier, ~0.85–1.15
-  fillingColor: string | null; // resolved hex for the filling stripe, or null if no filling chosen yet
   ceremonyDecoration: CeremonyDecoration;
   ceremonySelected: boolean; // true only once the customer has actually chosen one of the 6 real options — distinct from the "other" fallback bucket, which also covers "not chosen yet"
 }
@@ -66,11 +66,9 @@ export function buildCakeVisualModel(state: OrderState, requiredChecks: boolean[
   const sizeIndex = indexOfEitherLang(state.size, SIZE_VALUES);
   const sizeScale = SIZE_SCALE_BY_INDEX[sizeIndex] ?? 1;
 
-  const fillingIndex = indexOfEitherLang(state.filling, FILLING_VALUES);
-  const fillingColor = FILLING_HEX_BY_INDEX[fillingIndex] ?? null;
-
   const tiers: TierVisual[] = state.tiers.slice(0, state.tierCount).map((t) => ({
     colorHex: COLOR_HEX_BY_INDEX[indexOfEitherLang(t.color, COLOR_VALUES)] ?? null,
+    fillingHex: FILLING_HEX_BY_INDEX[indexOfEitherLang(t.filling, FILLING_VALUES)] ?? null,
   }));
 
   return {
@@ -80,7 +78,6 @@ export function buildCakeVisualModel(state: OrderState, requiredChecks: boolean[
     tierCount: state.tierCount,
     tiers,
     sizeScale,
-    fillingColor,
     ceremonyDecoration,
     ceremonySelected,
   };

@@ -6,13 +6,9 @@
 
 export type Lang = "en" | "ar";
 export type Shape = "circle" | "triangle" | "heart" | "rectangle" | null;
-// Flavor is preserved as an OPTIONAL per-tier detail (see Design &
-// Details) — Filling is now the required "what's in this cake" business
-// decision; Flavor itself never blocks progress or drives the cake
-// visual, but the data is kept for WhatsApp/Review since it's still
-// useful, real order information a customer may want to specify.
-export type Flavor = "chocolate" | "cream" | "half" | "other" | null;
-export type Tier = { color: string | null; colorOther?: string; flavor: Flavor; otherFlavor?: string };
+// Each tier carries its OWN color and filling — both required, one
+// picker per active tier (see Design & Details / Filling steps).
+export type Tier = { color: string | null; colorOther?: string; filling: string | null; fillingOther?: string };
 // A dynamic field's answer: a single string for text/number/single-select
 // (the select case stores the chosen option id), or a string[] of option
 // ids for multi-select. Resolved to display labels only when needed
@@ -24,7 +20,6 @@ export type OrderState = {
   shape: Shape;
   tierCount: 1 | 2 | 3; tiers: Tier[];
   size: string | null;
-  filling: string | null; fillingOther: string;
   message: string; notes: string;
   refPhotoDataUrl: string | null;
   dynamicAnswers: Record<string, DynamicAnswer>;
@@ -34,8 +29,8 @@ export const STORAGE_KEY = "torta-lab-order-state";
 
 export const defaultState: OrderState = {
   step: 0, maxStepReached: 0, ceremony: null, shape: null, tierCount: 1,
-  tiers: [{ color: null, flavor: null }],
-  size: null, filling: null, fillingOther: "",
+  tiers: [{ color: null, filling: null }],
+  size: null,
   message: "", notes: "", refPhotoDataUrl: null, dynamicAnswers: {},
 };
 
@@ -52,12 +47,6 @@ export const SHAPES: { key: Exclude<Shape, null>; en: string; ar: string }[] = [
   { key: "triangle", en: "Triangle", ar: "مثلث" },
   { key: "heart", en: "Heart", ar: "قلب" },
   { key: "rectangle", en: "Rectangle", ar: "مستطيل" },
-];
-export const FLAVORS: { key: Exclude<Flavor, null>; en: string; ar: string }[] = [
-  { key: "chocolate", en: "Chocolate", ar: "شوكولاتة" },
-  { key: "cream", en: "Cream", ar: "كريمة" },
-  { key: "half", en: "Half Cream / Half Chocolate", ar: "نص كريمة / نص شوكولاتة" },
-  { key: "other", en: "Other", ar: "أخرى" },
 ];
 export const SIZES = { en: ["Small", "Medium", "Large"], ar: ["صغير", "متوسط", "كبير"] };
 export const SIZE_VALUES = SIZES;

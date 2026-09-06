@@ -6,8 +6,8 @@ import { PublicNavbar } from "../navbar";
 import { CakeProgress } from "./cake-progress";
 import { buildCakeVisualModel } from "./cake-visual-model";
 import {
-  type Lang, type Flavor, type OrderState, type DynamicAnswer,
-  STORAGE_KEY, defaultState, CEREMONIES, SHAPES, FLAVORS, SIZES, FILLING_VALUES, COLOR_VALUES,
+  type Lang, type OrderState, type DynamicAnswer,
+  STORAGE_KEY, defaultState, CEREMONIES, SHAPES, SIZES, FILLING_VALUES, COLOR_VALUES,
 } from "./customize-options";
 
 // The 4 placeable Core Steps, in their fixed order, plus the final
@@ -48,6 +48,12 @@ function resolveDynamicAnswerText(field: PublicCustomizationField, answer: Dynam
 function isColorAnswered(color: string | null, colorOther: string | undefined): boolean {
   if (!color) return false;
   if (color === "Other" || color === "لون آخر") return !!colorOther?.trim();
+  return true;
+}
+
+function isFillingAnswered(filling: string | null, fillingOther: string | undefined): boolean {
+  if (!filling) return false;
+  if (filling === "Other" || filling === "أخرى") return !!fillingOther?.trim();
   return true;
 }
 
@@ -149,7 +155,7 @@ export default function CustomizePage() {
   const set = (patch: Partial<OrderState>) => setState((s) => ({ ...s, ...patch }));
 
   const setTierCount = (n: 1 | 2 | 3) => {
-    const tiers = Array.from({ length: n }, (_, i) => state.tiers[i] || { color: null, flavor: null });
+    const tiers = Array.from({ length: n }, (_, i) => state.tiers[i] || { color: null, filling: null });
     set({ tierCount: n, tiers });
   };
   const setTierColor = (i: number, color: string) => {
@@ -160,12 +166,12 @@ export default function CustomizePage() {
     const tiers = state.tiers.map((t, idx) => (idx === i ? { ...t, colorOther: val } : t));
     set({ tiers });
   };
-  const setTierFlavor = (i: number, flavor: Flavor) => {
-    const tiers = state.tiers.map((t, idx) => (idx === i ? { ...t, flavor } : t));
+  const setTierFilling = (i: number, filling: string) => {
+    const tiers = state.tiers.map((t, idx) => (idx === i ? { ...t, filling } : t));
     set({ tiers });
   };
-  const setTierOther = (i: number, val: string) => {
-    const tiers = state.tiers.map((t, idx) => (idx === i ? { ...t, otherFlavor: val } : t));
+  const setTierFillingOther = (i: number, val: string) => {
+    const tiers = state.tiers.map((t, idx) => (idx === i ? { ...t, fillingOther: val } : t));
     set({ tiers });
   };
 
@@ -186,8 +192,8 @@ export default function CustomizePage() {
     set({ dynamicAnswers: { ...state.dynamicAnswers, [fieldId]: next } });
   };
 
-  const fillingOk = !!state.filling && (state.filling !== "Other" && state.filling !== "أخرى" || !!state.fillingOther.trim());
   const allTierColorsOk = state.tiers.slice(0, state.tierCount).every((t) => isColorAnswered(t.color, t.colorOther));
+  const allTierFillingsOk = state.tiers.slice(0, state.tierCount).every((t) => isFillingAnswered(t.filling, t.fillingOther));
 
   const requiredSameStepAnswered = (id: CoreStepId) =>
     (sameStepFieldsByCore[id as CoreStepKey] ?? [])
@@ -202,11 +208,11 @@ export default function CustomizePage() {
     if (!requiredSameStepAnswered(currentDescriptor.id)) return false;
     if (currentDescriptor.id === "ceremony") return !!state.ceremony;
     if (currentDescriptor.id === "cakeStructure") return !!state.shape && !!state.size;
-    if (currentDescriptor.id === "filling") return fillingOk;
+    if (currentDescriptor.id === "filling") return allTierFillingsOk;
     if (currentDescriptor.id === "designDetails") return allTierColorsOk;
     return true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, currentDescriptor, sameStepFieldsByCore, fillingOk, allTierColorsOk]);
+  }, [state, currentDescriptor, sameStepFieldsByCore, allTierFillingsOk, allTierColorsOk]);
 
   const goNext = () => { if (!canContinue) return; const s = Math.min(state.step + 1, lastStepIndex); set({ step: s, maxStepReached: Math.max(state.maxStepReached, s) }); };
   const goBack = () => set({ step: Math.max(state.step - 1, 0) });
@@ -215,7 +221,7 @@ export default function CustomizePage() {
   // completed required Core fields + completed active required Custom
   // fields, over total applicable required fields. The denominator moves
   // with tier count: only tiers 1..tierCount contribute a required color
-  // check. Optional fields (tier flavor, cake message, photo, notes,
+  // and filling check each. Optional fields (cake message, photo, notes,
   // optional Custom Questions) never appear here.
   const requiredChecks = useMemo(() => {
     // Number of Tiers is intentionally not a separate check here: it
@@ -227,17 +233,17 @@ export default function CustomizePage() {
       !!state.ceremony,
       !!state.shape,
       !!state.size,
-      fillingOk,
     ];
     for (let i = 0; i < state.tierCount; i++) {
       const tier = state.tiers[i];
       checks.push(isColorAnswered(tier?.color ?? null, tier?.colorOther));
+      checks.push(isFillingAnswered(tier?.filling ?? null, tier?.fillingOther));
     }
     for (const field of fields) {
       if (field.required) checks.push(isDynamicFieldAnswered(field, state.dynamicAnswers[field.id]));
     }
     return checks;
-  }, [state, fields, fillingOk]);
+  }, [state, fields]);
   const cakeVisual = useMemo(() => buildCakeVisualModel(state, requiredChecks), [state, requiredChecks]);
 
   const handleFile = (file: File) => {
@@ -250,9 +256,9 @@ export default function CustomizePage() {
     if (!tier.color) return null;
     return tier.color === "Other" || tier.color === "لون آخر" ? tier.colorOther || null : tier.color;
   };
-  const tierFlavorLabel = (tier: OrderState["tiers"][number], L: Lang): string | null => {
-    if (!tier.flavor) return null;
-    return tier.flavor === "other" ? tier.otherFlavor || null : FLAVORS.find((f) => f.key === tier.flavor)?.[L] ?? null;
+  const tierFillingLabel = (tier: OrderState["tiers"][number]): string | null => {
+    if (!tier.filling) return null;
+    return tier.filling === "Other" || tier.filling === "أخرى" ? tier.fillingOther || null : tier.filling;
   };
 
   const buildMessage = () => {
@@ -263,16 +269,14 @@ export default function CustomizePage() {
     if (state.shape) lines.push(`🍰 ${L === "ar" ? "شكل التورتة" : "Cake Shape"}: ${SHAPES.find((s) => s.key === state.shape)?.[L]}`);
     lines.push(`🎂 ${L === "ar" ? "عدد الأدوار" : "Number of Tiers"}: ${state.tierCount}`);
     if (state.size) lines.push(`📏 ${L === "ar" ? "الحجم" : "Size"}: ${state.size}`);
-    if (state.filling) lines.push(`🍓 ${L === "ar" ? "الحشو" : "Filling"}: ${state.filling === (L === "ar" ? "أخرى" : "Other") ? state.fillingOther : state.filling}`);
+    state.tiers.slice(0, state.tierCount).forEach((t, i) => {
+      const filling = tierFillingLabel(t);
+      if (filling) lines.push(`🍓 ${TIER_LABELS[L][i]} ${L === "ar" ? "حشو" : "Filling"}: ${filling}`);
+    });
     state.tiers.slice(0, state.tierCount).forEach((t, i) => {
       const color = tierColorLabel(t);
       if (color) lines.push(`🎨 ${TIER_LABELS[L][i]} ${L === "ar" ? "لون" : "Color"}: ${color}`);
     });
-    const flavorLines = state.tiers
-      .slice(0, state.tierCount)
-      .map((t, i) => (tierFlavorLabel(t, L) ? `${TIER_LABELS[L][i]}: ${tierFlavorLabel(t, L)}` : null))
-      .filter((l): l is string => !!l);
-    if (flavorLines.length) lines.push(`🍫 ${L === "ar" ? "نكهة كل دور" : "Flavor per Tier"}:\n${flavorLines.join("\n")}`);
     if (state.message.trim()) lines.push(`✍️ ${L === "ar" ? "الكتابة على التورتة" : "Cake Message"}: ${state.message.trim()}`);
     if (state.notes.trim()) lines.push(`📝 ${L === "ar" ? "ملاحظات إضافية" : "Additional Notes"}:\n${state.notes.trim()}`);
     for (const field of fields) {
@@ -287,7 +291,7 @@ export default function CustomizePage() {
   };
 
   const handleSend = () => {
-    if (!state.shape || !state.size || !fillingOk || !allTierColorsOk) {
+    if (!state.shape || !state.size || !allTierFillingsOk || !allTierColorsOk) {
       setError(lang === "ar" ? "من فضلك أكمل كل البيانات الأساسية الإلزامية." : "Please complete all required cake details.");
       return;
     }
@@ -363,14 +367,25 @@ export default function CustomizePage() {
 
           {currentDescriptor.kind === "core" && currentDescriptor.id === "filling" && (
             <Step title={lang === "ar" ? "الحشو" : "Filling"}>
-              <div className="grid grid-cols-2 gap-2">
-                {FILLING_VALUES[lang].map((f) => <Chip key={f} small selected={state.filling === f} onClick={() => set({ filling: f })}>{f}</Chip>)}
+              <div className="space-y-5">
+                {state.tiers.slice(0, state.tierCount).map((tier, i) => (
+                  <div key={i} className={i > 0 ? "pt-4 border-t border-dashed border-[#E8D8CC]" : ""}>
+                    <p className="text-sm font-medium mb-2 text-[#79665E]">
+                      {lang === "ar" ? `حشو ${TIER_LABELS.ar[i]}` : `${TIER_LABELS.en[i]} Filling`}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {FILLING_VALUES[lang].map((f) => (
+                        <Chip key={f} small selected={tier.filling === f} onClick={() => setTierFilling(i, f)}>{f}</Chip>
+                      ))}
+                    </div>
+                    {(tier.filling === "Other" || tier.filling === "أخرى") && (
+                      <input value={tier.fillingOther || ""} onChange={(e) => setTierFillingOther(i, e.target.value)}
+                        placeholder={lang === "ar" ? "اكتب الحشو..." : "Describe the filling..."}
+                        className="mt-2 w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
+                    )}
+                  </div>
+                ))}
               </div>
-              {(state.filling === "Other" || state.filling === "أخرى") && (
-                <input value={state.fillingOther} onChange={(e) => set({ fillingOther: e.target.value })}
-                  placeholder={lang === "ar" ? "اكتب الحشو..." : "Describe the filling..."}
-                  className="mt-3 w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
-              )}
               <SameStepFields fields={sameStepFieldsByCore.filling} lang={lang} state={state}
                 setDynamicText={setDynamicText} setDynamicNumber={setDynamicNumber}
                 setDynamicSingleSelect={setDynamicSingleSelect} toggleDynamicMultiSelect={toggleDynamicMultiSelect} />
@@ -398,30 +413,6 @@ export default function CustomizePage() {
                     )}
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-6 pt-5 border-t border-dashed border-[#E8D8CC]">
-                <p className="text-sm font-semibold mb-3 text-[#633B2C]">
-                  {lang === "ar" ? "نكهة كل دور" : "Flavor per Tier"}
-                  <span className="text-xs font-normal text-[#B8945F]"> ({lang === "ar" ? "اختياري" : "optional"})</span>
-                </p>
-                <div className="space-y-4">
-                  {state.tiers.slice(0, state.tierCount).map((tier, i) => (
-                    <div key={i}>
-                      <p className="text-xs text-[#79665E] mb-1.5">{TIER_LABELS[lang][i]}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {FLAVORS.map((f) => (
-                          <Chip key={f.key} small selected={tier.flavor === f.key} onClick={() => setTierFlavor(i, f.key)}>{f[lang]}</Chip>
-                        ))}
-                      </div>
-                      {tier.flavor === "other" && (
-                        <input value={tier.otherFlavor || ""} onChange={(e) => setTierOther(i, e.target.value)}
-                          placeholder={lang === "ar" ? "اكتب النكهة..." : "Describe the flavor..."}
-                          className="mt-2 w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white" />
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div className="mt-6 pt-5 border-t border-dashed border-[#E8D8CC]">
@@ -507,15 +498,14 @@ export default function CustomizePage() {
                   <ReviewRow label={lang === "ar" ? "شكل التورتة" : "Cake Shape"} value={state.shape ? SHAPES.find((s) => s.key === state.shape)?.[lang] : null} onEdit={() => goToStep(coreStepIndex("cakeStructure"))} />
                   <ReviewRow label={lang === "ar" ? "عدد الأدوار" : "Tiers"} value={String(state.tierCount)} onEdit={() => goToStep(coreStepIndex("cakeStructure"))} />
                   <ReviewRow label={lang === "ar" ? "الحجم" : "Size"} value={state.size} onEdit={() => goToStep(coreStepIndex("cakeStructure"))} />
-                  <ReviewRow label={lang === "ar" ? "الحشو" : "Filling"} value={state.filling === "Other" || state.filling === "أخرى" ? state.fillingOther : state.filling} onEdit={() => goToStep(coreStepIndex("filling"))} />
+                  {state.tiers.slice(0, state.tierCount).map((t, i) => (
+                    <ReviewRow key={i} label={lang === "ar" ? `حشو ${TIER_LABELS.ar[i]}` : `${TIER_LABELS.en[i]} Filling`} value={tierFillingLabel(t)} onEdit={() => goToStep(coreStepIndex("filling"))} />
+                  ))}
                 </ReviewGroup>
 
                 <ReviewGroup title={lang === "ar" ? "التصميم" : "Design"}>
                   {state.tiers.slice(0, state.tierCount).map((t, i) => (
                     <ReviewRow key={i} label={lang === "ar" ? `لون ${TIER_LABELS.ar[i]}` : `${TIER_LABELS.en[i]} Color`} value={tierColorLabel(t)} onEdit={() => goToStep(coreStepIndex("designDetails"))} />
-                  ))}
-                  {state.tiers.slice(0, state.tierCount).map((t, i) => (
-                    <ReviewRow key={`flavor-${i}`} label={lang === "ar" ? `نكهة ${TIER_LABELS.ar[i]}` : `${TIER_LABELS.en[i]} Flavor`} value={tierFlavorLabel(t, lang)} onEdit={() => goToStep(coreStepIndex("designDetails"))} />
                   ))}
                   <ReviewRow label={lang === "ar" ? "الكتابة على التورتة" : "Cake Message"} value={state.message} onEdit={() => goToStep(coreStepIndex("designDetails"))} />
                   <ReviewRow label={lang === "ar" ? "ملاحظات" : "Notes"} value={state.notes} onEdit={() => goToStep(coreStepIndex("designDetails"))} />

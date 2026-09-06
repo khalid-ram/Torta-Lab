@@ -68,7 +68,7 @@ export const CORE_FLOW: CoreStepDefinition[] = [
     titleEn: "Filling",
     titleAr: "الحشو",
     order: 2,
-    inputs: [{ key: "filling", labelEn: "Filling", labelAr: "الحشو", required: true, type: "selection", specializedOptions: true }],
+    inputs: [{ key: "tierFillings", labelEn: "Filling per Tier", labelAr: "حشو كل دور", required: true, type: "selection", specializedOptions: true }],
   },
   {
     key: "designDetails",
@@ -77,7 +77,6 @@ export const CORE_FLOW: CoreStepDefinition[] = [
     order: 3,
     inputs: [
       { key: "tierColors", labelEn: "Tier Colors", labelAr: "ألوان الأدوار", required: true, type: "selection", specializedOptions: true },
-      { key: "tierFlavor", labelEn: "Flavor per Tier", labelAr: "نكهة كل دور", required: false, type: "selection", specializedOptions: true },
       { key: "cakeMessage", labelEn: "Cake Message", labelAr: "الكتابة على التورتة", required: false, type: "text", specializedOptions: false },
       { key: "referencePhoto", labelEn: "Reference Photo", labelAr: "صورة مرجعية", required: false, type: "file", specializedOptions: false },
       { key: "notes", labelEn: "Additional Notes", labelAr: "ملاحظات إضافية", required: false, type: "textarea", specializedOptions: false },
