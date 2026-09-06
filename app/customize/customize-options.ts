@@ -5,8 +5,14 @@
 // both page.tsx and cake-visual-model.ts can import it.
 
 export type Lang = "en" | "ar";
+export type Shape = "circle" | "triangle" | "heart" | "rectangle" | null;
+// Flavor is preserved as an OPTIONAL per-tier detail (see Design &
+// Details) — Filling is now the required "what's in this cake" business
+// decision; Flavor itself never blocks progress or drives the cake
+// visual, but the data is kept for WhatsApp/Review since it's still
+// useful, real order information a customer may want to specify.
 export type Flavor = "chocolate" | "cream" | "half" | "other" | null;
-export type Tier = { flavor: Flavor; otherFlavor?: string };
+export type Tier = { color: string | null; colorOther?: string; flavor: Flavor; otherFlavor?: string };
 // A dynamic field's answer: a single string for text/number/single-select
 // (the select case stores the chosen option id), or a string[] of option
 // ids for multi-select. Resolved to display labels only when needed
@@ -14,11 +20,11 @@ export type Tier = { flavor: Flavor; otherFlavor?: string };
 export type DynamicAnswer = string | string[];
 export type OrderState = {
   step: number; maxStepReached: number;
-  occasion: string | null;
+  ceremony: string | null;
+  shape: Shape;
   tierCount: 1 | 2 | 3; tiers: Tier[];
   size: string | null;
   filling: string | null; fillingOther: string;
-  colors: string[]; colorOther: string;
   message: string; notes: string;
   refPhotoDataUrl: string | null;
   dynamicAnswers: Record<string, DynamicAnswer>;
@@ -27,8 +33,9 @@ export type OrderState = {
 export const STORAGE_KEY = "torta-lab-order-state";
 
 export const defaultState: OrderState = {
-  step: 0, maxStepReached: 0, occasion: null, tierCount: 1, tiers: [{ flavor: null }],
-  size: null, filling: null, fillingOther: "", colors: [], colorOther: "",
+  step: 0, maxStepReached: 0, ceremony: null, shape: null, tierCount: 1,
+  tiers: [{ color: null, flavor: null }],
+  size: null, filling: null, fillingOther: "",
   message: "", notes: "", refPhotoDataUrl: null, dynamicAnswers: {},
 };
 
@@ -36,10 +43,16 @@ export const defaultState: OrderState = {
 // underlying option regardless of which language it was selected in.
 // cake-visual-model.ts relies on this alignment to map a selected
 // (language-display) value back to its canonical index.
-export const OCCASIONS = {
+export const CEREMONIES = {
   en: ["Birthday", "Wedding", "Engagement", "Anniversary", "Other", "No Occasion"],
   ar: ["عيد ميلاد", "فرح", "خطوبة", "ذكرى زواج", "مناسبة أخرى", "بدون مناسبة"],
 };
+export const SHAPES: { key: Exclude<Shape, null>; en: string; ar: string }[] = [
+  { key: "circle", en: "Circle", ar: "دائري" },
+  { key: "triangle", en: "Triangle", ar: "مثلث" },
+  { key: "heart", en: "Heart", ar: "قلب" },
+  { key: "rectangle", en: "Rectangle", ar: "مستطيل" },
+];
 export const FLAVORS: { key: Exclude<Flavor, null>; en: string; ar: string }[] = [
   { key: "chocolate", en: "Chocolate", ar: "شوكولاتة" },
   { key: "cream", en: "Cream", ar: "كريمة" },

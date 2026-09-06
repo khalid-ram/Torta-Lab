@@ -54,17 +54,12 @@ function coreInputTypeLabel(input: CoreInputDefinition, t: T) {
   }[input.type];
 }
 
-function Badge({ tone, children }: { tone: "core" | "custom" | "required" | "optional" | "active" | "paused" | "locked"; children: React.ReactNode }) {
-  const styles: Record<string, string> = {
-    core: "bg-[#F3EAE0] text-[#79665E]",
-    custom: "bg-[#F3C7CC]/40 text-[#633B2C]",
-    required: "bg-[#FCE8E6] text-[#B3261E]",
-    optional: "bg-[#E8F5E9] text-[#2E7D32]",
-    active: "bg-[#E8F5E9] text-[#2E7D32]",
-    paused: "bg-[#F3EAE0] text-[#79665E]",
-    locked: "bg-[#F3EAE0] text-[#633B2C]",
-  };
-  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${styles[tone]}`}>{children}</span>;
+// Only genuinely exceptional states get a colored pill now (paused —
+// the one state an admin needs to notice at a glance). Everything else
+// (Core/Custom, Required/Optional, Active) reads as plain muted text
+// beside the label instead of competing colored badges.
+function StatusPill({ children }: { children: React.ReactNode }) {
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap bg-[#F3EAE0] text-[#79665E]">{children}</span>;
 }
 
 function FieldActionsMenu({
@@ -151,7 +146,7 @@ function makeEmptyForm(initial?: Partial<FormState>): FormState {
     selectionMode: "single",
     options: ["", ""],
     placementType: "separate_step",
-    coreStepKey: "occasion",
+    coreStepKey: "ceremony",
     afterCoreStepKey: PLACEABLE_CORE_STEP_KEYS[PLACEABLE_CORE_STEP_KEYS.length - 1],
     ...initial,
   };
@@ -301,15 +296,13 @@ export default function AdminCustomizationPage() {
   const fieldTypeLabel = (f: api.AdminField) => (f.fieldType === "text" ? t.typeText : f.fieldType === "number" ? t.typeNumber : t.typeSelection);
 
   const customRow = (field: api.AdminField) => (
-    <div key={field.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#F3EAE0] last:border-0">
+    <div key={field.id} className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-[#F3EAE0] last:border-0">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-medium text-[#33221C] text-sm">{field.label}</span>
-          <Badge tone="custom">{t.sourceCustom}</Badge>
-          <Badge tone={field.isRequired ? "required" : "optional"}>{field.isRequired ? t.required : t.optional}</Badge>
-          <Badge tone={field.status === "active" ? "active" : "paused"}>{field.status === "active" ? t.statusActive : t.statusPaused}</Badge>
-        </div>
-        <p className="text-xs text-[#79665E] mt-0.5">{fieldTypeLabel(field)}</p>
+        <span className="font-medium text-[#33221C] text-sm">{field.label}</span>
+        <p className="text-xs text-[#79665E] mt-0.5">
+          {fieldTypeLabel(field)} · {field.isRequired ? t.required : t.optional}
+          {field.status === "paused" && <span className="ms-1.5"><StatusPill>{t.statusPaused}</StatusPill></span>}
+        </p>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {moveButtons(field)}
@@ -328,24 +321,20 @@ export default function AdminCustomizationPage() {
   );
 
   const coreRow = (input: CoreInputDefinition) => (
-    <div key={input.key} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#F3EAE0] last:border-0">
+    <div key={input.key} className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-[#F3EAE0] last:border-0">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5">
           <span className="font-medium text-[#33221C] text-sm">{coreInputLabel(input, lang)}</span>
-          <Badge tone="core">{t.sourceCore}</Badge>
-          <Badge tone={input.required ? "required" : "optional"}>{input.required ? t.required : t.optional}</Badge>
           {input.required && (
-            <span className="group relative inline-flex">
-              <Badge tone="locked">
-                <LockIcon /> {t.locked}
-              </Badge>
+            <span className="group relative inline-flex text-[#B8945F]">
+              <LockIcon />
               <span className="pointer-events-none absolute bottom-full start-0 mb-2 w-60 rounded-lg bg-[#33221C] text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition z-10 normal-case font-normal leading-relaxed">
                 {t.lockedTooltip}
               </span>
             </span>
           )}
         </div>
-        <p className="text-xs text-[#79665E] mt-0.5">{coreInputTypeLabel(input, t)}</p>
+        <p className="text-xs text-[#79665E] mt-0.5">{coreInputTypeLabel(input, t)} · {input.required ? t.required : t.optional}</p>
       </div>
     </div>
   );
@@ -374,7 +363,7 @@ export default function AdminCustomizationPage() {
 
       {error && <p className="mt-4 text-sm font-medium text-[#D96C7C]">{error}</p>}
 
-      <div className="mt-6 space-y-5">
+      <div className="mt-6 space-y-8">
         {CORE_FLOW.map((step) => {
           const customSameStep = sameStepByCore[step.key as CoreStepKey] ?? [];
           const separateAfter = separateByCore[step.key as CoreStepKey] ?? [];
@@ -383,15 +372,14 @@ export default function AdminCustomizationPage() {
           return (
             <div key={step.key}>
               <div className="border border-[#E8D8CC] rounded-2xl overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#FFFCF8] border-b border-[#E8D8CC]">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-semibold text-[#B8945F]">{t.pageLabel(pageNumberById[step.key])}</span>
-                    <h2 className="font-serif font-bold text-[#33221C]">{coreStepTitle(step, lang)}</h2>
-                    <Badge tone="core">{t.sourceCore}</Badge>
-                    <span className="text-xs text-[#79665E]">{t.inputsCount(inputCount)}</span>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 bg-[#FFFCF8] border-b border-[#E8D8CC]">
+                  <div className="flex items-baseline gap-2.5 min-w-0">
+                    <span className="text-xs font-semibold text-[#B8945F] shrink-0">{t.pageLabel(pageNumberById[step.key])}</span>
+                    <h2 className="font-serif font-bold text-[#33221C] truncate">{coreStepTitle(step, lang)}</h2>
+                    <span className="text-xs text-[#79665E] shrink-0">{t.inputsCount(inputCount)}</span>
                   </div>
                   {step.key !== "review" && (
-                    <button onClick={() => openAddInput(step.key as CoreStepKey)} className="text-sm font-semibold text-[#633B2C] hover:text-[#D96C7C] transition">
+                    <button onClick={() => openAddInput(step.key as CoreStepKey)} className="text-sm font-medium text-[#79665E] hover:text-[#D96C7C] transition shrink-0">
                       + {t.addInput}
                     </button>
                   )}
@@ -404,13 +392,11 @@ export default function AdminCustomizationPage() {
               </div>
 
               {separateAfter.map((field) => (
-                <div key={field.id} className="border border-[#E8D8CC] rounded-2xl overflow-hidden mt-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#FFFCF8] border-b border-[#E8D8CC]">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                <div key={field.id} className="border border-[#E8D8CC] rounded-2xl overflow-hidden mt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 bg-[#FFFCF8] border-b border-[#E8D8CC]">
+                    <div className="flex items-baseline gap-2.5 min-w-0">
                       <span className="text-xs font-semibold text-[#B8945F] shrink-0">{t.pageLabel(pageNumberById[field.id])}</span>
                       <h2 className="font-serif font-bold text-[#33221C] truncate">{field.label}</h2>
-                      <Badge tone="custom">{t.sourceCustom}</Badge>
-                      <span className="text-xs text-[#79665E] shrink-0">{t.inputsCount(1)}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {moveButtons(field)}
@@ -426,16 +412,11 @@ export default function AdminCustomizationPage() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge tone={field.isRequired ? "required" : "optional"}>{field.isRequired ? t.required : t.optional}</Badge>
-                          <Badge tone={field.status === "active" ? "active" : "paused"}>{field.status === "active" ? t.statusActive : t.statusPaused}</Badge>
-                        </div>
-                        <p className="text-xs text-[#79665E] mt-0.5">{fieldTypeLabel(field)}</p>
-                      </div>
-                    </div>
+                  <div className="px-4 py-3.5">
+                    <p className="text-xs text-[#79665E]">
+                      {fieldTypeLabel(field)} · {field.isRequired ? t.required : t.optional}
+                      {field.status === "paused" && <span className="ms-1.5"><StatusPill>{t.statusPaused}</StatusPill></span>}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -512,8 +493,8 @@ function FieldFormModal({
           selectionMode: field.selectionMode ?? "single",
           options: field.options.length ? field.options.map((o) => o.label) : ["", ""],
           placementType: field.placementType,
-          coreStepKey: field.coreStepKey ?? "occasion",
-          afterCoreStepKey: field.afterCoreStepKey ?? "occasion",
+          coreStepKey: field.coreStepKey ?? "ceremony",
+          afterCoreStepKey: field.afterCoreStepKey ?? "ceremony",
         }
       : makeEmptyForm(initial),
   );

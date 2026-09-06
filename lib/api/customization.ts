@@ -7,9 +7,9 @@ export type SelectionMode = "single" | "multi";
 export type FieldStatus = "active" | "paused";
 export type PlacementType = "core_step" | "separate_step";
 
-// The 7 placeable Core Steps of /customize, in their fixed order.
+// The 4 placeable Core Steps of /customize, in their fixed order.
 // "review" is never a valid placement target — see app/customize/page.tsx.
-export const CORE_STEP_KEYS = ["occasion", "tiers", "flavors", "sizeFilling", "colorsMessage", "photo", "notes"] as const;
+export const CORE_STEP_KEYS = ["ceremony", "cakeStructure", "filling", "designDetails"] as const;
 export type CoreStepKey = (typeof CORE_STEP_KEYS)[number];
 
 export interface FieldOption {
