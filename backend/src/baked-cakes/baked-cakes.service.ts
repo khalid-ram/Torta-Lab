@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import heicConvert from 'heic-convert';
 import { SupabaseService } from '../supabase/supabase.service';
 import { escapeIlikeTerm } from '../common/utils/postgrest-search';
 import { generateStoragePath } from '../common/utils/generate-storage-path';
@@ -54,9 +55,10 @@ const PUBLIC_LIMIT = 24;
 // Safari/iOS can report an HEIC photo's mimetype as image/png or
 // image/jpeg (the file's real bytes stay HEIC-encoded) — that passes a
 // mimetype-only check but produces a file no non-Apple browser, and not
-// even Next.js's own image optimizer, can actually decode. Checking the
-// real magic bytes catches that at upload time instead of shipping a
-// thumbnail that silently fails to render for almost every visitor.
+// even Next.js's own image optimizer, can actually decode. normalizeImage
+// below checks the real magic bytes and transparently converts an HEIC
+// upload to JPEG server-side, so admins can upload straight from an
+// iPhone without a broken thumbnail or an extra manual export step.
 const IMAGE_SIGNATURES: Record<string, (buf: Buffer) => boolean> = {
   'image/jpeg': (buf) => buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff,
   'image/png': (buf) =>
@@ -170,7 +172,7 @@ export class BakedCakesService {
 
       if (dto.media_type === 'image') {
         if (!mediaFile) throw new BadRequestException('A photo is required.');
-        this.validateImage(mediaFile);
+        await this.normalizeImage(mediaFile);
         mediaPath = generateStoragePath('images', mediaFile.mimetype);
         await this.uploadFile(mediaPath, mediaFile);
         uploadedPaths.push(mediaPath);
@@ -179,7 +181,7 @@ export class BakedCakesService {
         if (!mediaFile) throw new BadRequestException('A video is required.');
         if (!thumbnailFile) throw new BadRequestException('A thumbnail is required for video cakes.');
         this.validateVideo(mediaFile);
-        this.validateImage(thumbnailFile);
+        await this.normalizeImage(thumbnailFile);
 
         mediaPath = generateStoragePath('videos', mediaFile.mimetype);
         await this.uploadFile(mediaPath, mediaFile);
@@ -243,7 +245,7 @@ export class BakedCakesService {
 
       if (targetMediaType === 'image') {
         if (mediaFile) {
-          this.validateImage(mediaFile);
+          await this.normalizeImage(mediaFile);
           newMediaPath = generateStoragePath('images', mediaFile.mimetype);
           await this.uploadFile(newMediaPath, mediaFile);
           uploadedPaths.push(newMediaPath);
@@ -271,7 +273,7 @@ export class BakedCakesService {
           update.media_url = this.getPublicUrl(newMediaPath);
         }
         if (thumbnailFile) {
-          this.validateImage(thumbnailFile);
+          await this.normalizeImage(thumbnailFile);
           newThumbnailPath = generateStoragePath('thumbnails', thumbnailFile.mimetype);
           await this.uploadFile(newThumbnailPath, thumbnailFile);
           uploadedPaths.push(newThumbnailPath);
@@ -324,14 +326,26 @@ export class BakedCakesService {
     return data as BakedCakeRecord;
   }
 
-  private validateImage(file: Express.Multer.File): void {
+  // Detects an HEIC upload by its real bytes (regardless of what mimetype
+  // the browser reported) and transparently converts it to JPEG in place
+  // before the usual checks run, so the stored file is always something
+  // every browser can actually display.
+  private async normalizeImage(file: Express.Multer.File): Promise<void> {
+    if (isHeicFile(file.buffer)) {
+      let converted: Uint8Array;
+      try {
+        converted = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 0.9 });
+      } catch (err) {
+        this.logger.error(`Failed to convert HEIC image: ${err instanceof Error ? err.message : String(err)}`);
+        throw new BadRequestException('This photo could not be converted. Please export it as JPEG or PNG and try again.');
+      }
+      file.buffer = Buffer.from(converted);
+      file.mimetype = 'image/jpeg';
+      file.size = file.buffer.length;
+    }
+
     if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException('Unsupported image type. Allowed: JPEG, PNG, WEBP.');
-    }
-    if (isHeicFile(file.buffer)) {
-      throw new BadRequestException(
-        'This looks like an iPhone HEIC photo, which browsers cannot display. Please export/share it as JPEG or PNG first, then upload again.',
-      );
     }
     if (!IMAGE_SIGNATURES[file.mimetype]?.(file.buffer)) {
       throw new BadRequestException('The uploaded file does not look like a valid JPEG, PNG, or WEBP image.');
