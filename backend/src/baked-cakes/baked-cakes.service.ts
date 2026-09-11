@@ -51,6 +51,33 @@ const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 const PUBLIC_LIMIT = 24;
 
+// Safari/iOS can report an HEIC photo's mimetype as image/png or
+// image/jpeg (the file's real bytes stay HEIC-encoded) — that passes a
+// mimetype-only check but produces a file no non-Apple browser, and not
+// even Next.js's own image optimizer, can actually decode. Checking the
+// real magic bytes catches that at upload time instead of shipping a
+// thumbnail that silently fails to render for almost every visitor.
+const IMAGE_SIGNATURES: Record<string, (buf: Buffer) => boolean> = {
+  'image/jpeg': (buf) => buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff,
+  'image/png': (buf) =>
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a,
+  'image/webp': (buf) => buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP',
+};
+
+const HEIC_BRANDS = ['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1'];
+function isHeicFile(buf: Buffer): boolean {
+  if (buf.length < 12 || buf.toString('ascii', 4, 8) !== 'ftyp') return false;
+  return HEIC_BRANDS.includes(buf.toString('ascii', 8, 12));
+}
+
 @Injectable()
 export class BakedCakesService {
   private readonly logger = new Logger(BakedCakesService.name);
@@ -300,6 +327,14 @@ export class BakedCakesService {
   private validateImage(file: Express.Multer.File): void {
     if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException('Unsupported image type. Allowed: JPEG, PNG, WEBP.');
+    }
+    if (isHeicFile(file.buffer)) {
+      throw new BadRequestException(
+        'This looks like an iPhone HEIC photo, which browsers cannot display. Please export/share it as JPEG or PNG first, then upload again.',
+      );
+    }
+    if (!IMAGE_SIGNATURES[file.mimetype]?.(file.buffer)) {
+      throw new BadRequestException('The uploaded file does not look like a valid JPEG, PNG, or WEBP image.');
     }
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       throw new BadRequestException('Image exceeds the 10MB limit.');
