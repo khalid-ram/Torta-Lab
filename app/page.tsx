@@ -266,7 +266,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="cakes" className="group relative max-w-6xl mx-auto px-6 py-10 md:py-12">
+      <section id="cakes" className={`group relative py-10 md:py-12 ${PUBLIC_CONTAINER_CLASS}`}>
         <h2 className="text-3xl font-serif font-bold text-center">{t.cakes.title}</h2>
         <p className="text-center text-[#79665E] mt-3 max-w-xl mx-auto">{t.cakes.subtitle}</p>
 
@@ -293,7 +293,7 @@ export default function Home() {
 
         <div
           ref={cakesRowRef}
-          className="mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 md:justify-center"
+          className="cakes-row mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0"
         >
           {displayCakes.map((cake) => (
             <div
@@ -366,6 +366,20 @@ export default function Home() {
             </Link>
           </div>
         </div>
+
+        {/* The row still scrolls (via the arrow buttons, touch, or trackpad)
+            — only the native scrollbar chrome is hidden, so an overflowing
+            last card just peeks in at the edge instead of showing a
+            scrollbar. */}
+        <style jsx>{`
+          .cakes-row {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .cakes-row::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
       </section>
 
       {videoGalleryOpen && videoCakes[activeVideoIndex] && (
