@@ -112,15 +112,6 @@ export default function Home() {
   const dir = lang === "ar" ? "rtl" : "ltr";
   const t = T[lang];
 
-  useEffect(() => {
-    const el = cakesRowRef.current;
-    if (!el) return;
-    const checkOverflow = () => setCanScrollCakes(el.scrollWidth > el.clientWidth + 1);
-    checkOverflow();
-    window.addEventListener("resize", checkOverflow);
-    return () => window.removeEventListener("resize", checkOverflow);
-  }, []);
-
   const scrollCakes = (direction: 1 | -1) => {
     const el = cakesRowRef.current;
     if (!el) return;
@@ -197,6 +188,22 @@ export default function Home() {
     const el = cakesRowRef.current;
     if (!el || displayCakes.length === 0) return;
     el.scrollLeft = 0;
+  }, [displayCakes]);
+
+  // Whether the row's real content (which only exists once bakedCakes has
+  // actually loaded) overflows its container — drives both the arrow
+  // buttons and whether the row centers (fits) or start-aligns
+  // (overflows). Must re-check whenever displayCakes changes: checking
+  // once on mount (the previous approach) ran before the async fetch
+  // populated any cards, so it permanently measured just the static card
+  // alone and never noticed real overflow afterwards.
+  useEffect(() => {
+    const el = cakesRowRef.current;
+    if (!el) return;
+    const checkOverflow = () => setCanScrollCakes(el.scrollWidth > el.clientWidth + 1);
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
   }, [displayCakes]);
 
   useEffect(() => {
@@ -293,7 +300,7 @@ export default function Home() {
 
         <div
           ref={cakesRowRef}
-          className="cakes-row mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0"
+          className={`cakes-row mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 ${canScrollCakes ? "" : "md:justify-center"}`}
         >
           {displayCakes.map((cake) => (
             <div
