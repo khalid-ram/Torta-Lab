@@ -27,7 +27,7 @@ const VIDEO_FEED_T: Record<
     unmute: string;
     showMore: string;
     showLess: string;
-    orderThisCake: string;
+    orderNow: string;
     customizeYourCake: string;
   }
 > = {
@@ -39,7 +39,7 @@ const VIDEO_FEED_T: Record<
     unmute: "Unmute",
     showMore: "Show more",
     showLess: "Show less",
-    orderThisCake: "Order This Cake",
+    orderNow: "Order Now",
     customizeYourCake: "Customize Your Cake",
   },
   ar: {
@@ -50,7 +50,7 @@ const VIDEO_FEED_T: Record<
     unmute: "تشغيل الصوت",
     showMore: "عرض المزيد",
     showLess: "عرض أقل",
-    orderThisCake: "اطلب التورتة",
+    orderNow: "اطلب الآن",
     customizeYourCake: "صمّم تورتتك",
   },
 };
@@ -185,27 +185,21 @@ function VideoFeedItem({
     }
   };
 
+  // One CTA only: Order Now (WhatsApp) when the cake can be ordered,
+  // Customize Your Cake as the sole fallback when it can't — never both.
   const ctaButtons = cake.isAvailableToOrder ? (
-    <>
-      <a
-        href={buildWhatsAppUrl(whatsappMessage(cake.name))}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-1.5 whitespace-nowrap bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-      >
-        <WhatsAppIcon /> {t.orderThisCake}
-      </a>
-      <Link
-        href="/customize?new=1"
-        className="whitespace-nowrap bg-white/15 hover:bg-white/25 border border-white/40 backdrop-blur-sm text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-      >
-        {t.customizeYourCake}
-      </Link>
-    </>
+    <a
+      href={buildWhatsAppUrl(whatsappMessage(cake.name))}
+      target="_blank"
+      rel="noreferrer"
+      className="shrink-0 flex items-center gap-1.5 whitespace-nowrap bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+    >
+      <WhatsAppIcon /> {t.orderNow}
+    </a>
   ) : (
     <Link
       href="/customize?new=1"
-      className="whitespace-nowrap bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      className="shrink-0 whitespace-nowrap bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
     >
       {t.customizeYourCake}
     </Link>
@@ -218,14 +212,15 @@ function VideoFeedItem({
           never beside it. */}
       <div className="shrink-0 h-14 sm:h-16" />
 
-      {/* Title + CTAs sit above the video, not overlaid on it, and share
-          the video's own centered column (not the full screen width). In
-          Arabic the title reads at the (right) start edge and the CTAs
-          sit at the (left) end edge; English mirrors automatically since
-          this follows the page's own dir, not a hardcoded side. */}
-      <div className="shrink-0 w-full max-w-md mx-auto flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
+      {/* Title + one CTA sit above the video, not overlaid on it, and
+          share the video's own centered column (not the full screen
+          width). In Arabic the title reads at the (right) start edge and
+          the CTA sits at the (left) end edge; English mirrors
+          automatically since this follows the page's own dir, not a
+          hardcoded side. */}
+      <div className="shrink-0 w-full max-w-md mx-auto flex items-center justify-between gap-4 px-4 pb-3">
         <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1 min-w-0">{cake.name}</h3>
-        <div className="flex items-center gap-2 shrink-0">{ctaButtons}</div>
+        {ctaButtons}
       </div>
 
       {/* Video, centered in the remaining (now shorter, since the header
