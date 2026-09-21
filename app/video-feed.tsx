@@ -83,11 +83,15 @@ function SpeakerIcon({ muted }: { muted: boolean }) {
 // Collapses to 2 lines with a "Show more" affordance only when the text
 // actually overflows 2 lines (measured, not guessed from length — a
 // short line-1 sentence and a long word-heavy one clamp differently).
-// Expanded state caps at ~25% of the viewer's height and scrolls
-// internally with `overscroll-behavior: contain`, which is what stops a
-// scroll gesture inside the description from also advancing the outer
-// snap feed to the next video — it only starts affecting the ancestor
-// scroller once this inner one has nowhere further to scroll.
+// Expanded state caps at 1/4 of the video's own height (the parent box
+// this sits in has a concrete pixel height via aspect-ratio, so a plain
+// CSS percentage resolves correctly here) and scrolls internally with
+// `overscroll-behavior: contain`, which is what stops a scroll gesture
+// inside the description from also advancing the outer snap feed to the
+// next video — it only starts affecting the ancestor scroller once this
+// inner one has nowhere further to scroll. The white/80 glass panel is
+// the same treatment collapsed or expanded, just taller when expanded,
+// so toggling it never swaps to a visually different card.
 function ExpandableDescription({ text, lang }: { text: string; lang: Lang }) {
   const t = VIDEO_FEED_T[lang];
   const [expanded, setExpanded] = useState(false);
@@ -103,10 +107,10 @@ function ExpandableDescription({ text, lang }: { text: string; lang: Lang }) {
   if (!text) return null;
 
   return (
-    <div>
+    <div className={`flex flex-col bg-white/80 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-4 ${expanded ? "max-h-[25%]" : ""}`}>
       <p
         ref={pRef}
-        className={`description-scroll text-sm text-white/90 leading-relaxed ${expanded ? "max-h-[25dvh] overflow-y-auto [overscroll-behavior:contain]" : "line-clamp-2"}`}
+        className={`description-scroll text-sm text-[#33221C] leading-relaxed ${expanded ? "flex-1 min-h-0 overflow-y-auto [overscroll-behavior:contain]" : "line-clamp-2"}`}
       >
         {text}
       </p>
@@ -114,7 +118,7 @@ function ExpandableDescription({ text, lang }: { text: string; lang: Lang }) {
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-1 text-xs font-semibold text-white underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded"
+          className="mt-1 shrink-0 text-xs font-semibold text-[#633B2C] underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-[#633B2C]/60 rounded self-start"
         >
           {expanded ? t.showLess : t.showMore}
         </button>
@@ -181,76 +185,92 @@ function VideoFeedItem({
     }
   };
 
+  const ctaButtons = cake.isAvailableToOrder ? (
+    <>
+      <a
+        href={buildWhatsAppUrl(whatsappMessage(cake.name))}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-1.5 whitespace-nowrap bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      >
+        <WhatsAppIcon /> {t.orderThisCake}
+      </a>
+      <Link
+        href="/customize?new=1"
+        className="whitespace-nowrap bg-white/15 hover:bg-white/25 border border-white/40 backdrop-blur-sm text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      >
+        {t.customizeYourCake}
+      </Link>
+    </>
+  ) : (
+    <Link
+      href="/customize?new=1"
+      className="whitespace-nowrap bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+    >
+      {t.customizeYourCake}
+    </Link>
+  );
+
   return (
-    <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-      <video
-        ref={videoRef}
-        src={cake.mediaUrl}
-        poster={cake.thumbnailUrl ?? undefined}
-        muted={muted}
-        loop
-        playsInline
-        preload={active ? "auto" : near ? "metadata" : "none"}
-        className="absolute inset-0 w-full h-full object-contain"
-      />
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
+      {/* Header: title + CTAs sit above the video, not overlaid on it. In
+          Arabic the title reads at the (right) start edge and the CTAs
+          sit at the (left) end edge; English mirrors automatically since
+          this follows the page's own dir, not a hardcoded side. Extra
+          end-side padding keeps this clear of the fixed close button. */}
+      <div className="shrink-0 flex flex-wrap items-start justify-between gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 pe-16 sm:pe-20">
+        <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1 min-w-0">{cake.name}</h3>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleMute}
+            aria-label={muted ? t.unmute : t.mute}
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            <SpeakerIcon muted={muted} />
+          </button>
+          {ctaButtons}
+        </div>
+      </div>
 
-      {/* Tap-to-play/pause — sits behind the bottom content block (lower
-          in the DOM / lower z-index), so title/description/CTA taps
-          still reach their own controls. */}
-      <button
-        type="button"
-        onClick={togglePlayPause}
-        aria-label={userPaused ? t.play : t.pause}
-        className="absolute inset-0 z-10 flex items-center justify-center outline-none"
-      >
-        {userPaused && (
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
-            <PlayGlyph playing={false} />
-          </span>
-        )}
-      </button>
+      {/* Video, centered in the remaining space with the 90%-opacity
+          black backdrop showing through around it. The box itself stays
+          fully opaque black (standard video-player backing) so it never
+          looks broken/see-through before a frame has painted — only the
+          surrounding backdrop is the translucent one. */}
+      <div className="relative flex-1 min-h-0 flex items-center justify-center px-2 sm:px-4 pb-4">
+        <div className="relative h-full max-w-full aspect-[9/16] bg-black rounded-xl overflow-hidden">
+          <video
+            ref={videoRef}
+            src={cake.mediaUrl}
+            poster={cake.thumbnailUrl ?? undefined}
+            muted={muted}
+            loop
+            playsInline
+            preload={active ? "auto" : near ? "metadata" : "none"}
+            className="absolute inset-0 w-full h-full object-contain"
+          />
 
-      <button
-        type="button"
-        onClick={onToggleMute}
-        aria-label={muted ? t.unmute : t.mute}
-        className="absolute top-4 start-4 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-      >
-        <SpeakerIcon muted={muted} />
-      </button>
+          {/* Tap-to-play/pause — sits behind the description (lower
+              z-index), so its "Show more" / scroll taps still land. */}
+          <button
+            type="button"
+            onClick={togglePlayPause}
+            aria-label={userPaused ? t.play : t.pause}
+            className="absolute inset-0 z-10 flex items-center justify-center outline-none"
+          >
+            {userPaused && (
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
+                <PlayGlyph playing={false} />
+              </span>
+            )}
+          </button>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
-
-      <div className="absolute inset-x-0 bottom-0 z-20 p-5 sm:p-8 pb-8 sm:pb-10 flex flex-col gap-2 max-w-xl">
-        <h3 className="font-serif font-bold text-xl sm:text-2xl text-white">{cake.name}</h3>
-        <ExpandableDescription text={cake.description} lang={lang} />
-
-        <div className="flex items-center gap-3 mt-3">
-          {cake.isAvailableToOrder ? (
-            <>
-              <a
-                href={buildWhatsAppUrl(whatsappMessage(cake.name))}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 text-center bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-4 py-3 font-semibold text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              >
-                <WhatsAppIcon /> {t.orderThisCake}
-              </a>
-              <Link
-                href="/customize?new=1"
-                className="flex-1 text-center bg-white/15 hover:bg-white/25 border border-white/40 backdrop-blur-sm text-white rounded-full px-4 py-3 font-semibold text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-              >
-                {t.customizeYourCake}
-              </Link>
-            </>
-          ) : (
-            <Link
-              href="/customize?new=1"
-              className="flex-1 text-center bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full px-4 py-3 font-semibold text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            >
-              {t.customizeYourCake}
-            </Link>
-          )}
+          {/* Description overlay — anchored to the video's own box, so it
+              always matches the video's width exactly, not the screen's. */}
+          <div className="absolute inset-x-0 bottom-0 z-20">
+            <ExpandableDescription text={cake.description} lang={lang} />
+          </div>
         </div>
       </div>
     </div>
@@ -338,7 +358,7 @@ export function VideoFeed({
   if (cakes.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[80] bg-black/90" role="dialog" aria-modal="true">
       <button
         type="button"
         onClick={onClose}
