@@ -107,7 +107,7 @@ function ExpandableDescription({ text, lang }: { text: string; lang: Lang }) {
   if (!text) return null;
 
   return (
-    <div className={`flex flex-col bg-white/80 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-4 ${expanded ? "max-h-[25%]" : ""}`}>
+    <div className={`flex flex-col bg-white/60 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-4 ${expanded ? "max-h-[25%]" : ""}`}>
       <p
         ref={pRef}
         className={`description-scroll text-sm text-[#33221C] leading-relaxed ${expanded ? "flex-1 min-h-0 overflow-y-auto [overscroll-behavior:contain]" : "line-clamp-2"}`}
@@ -213,32 +213,28 @@ function VideoFeedItem({
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
-      {/* Header: title + CTAs sit above the video, not overlaid on it. In
+      {/* Clears the fixed close button, which lives at the very top of
+          the whole screen (VideoFeed level) — title/CTAs sit below it,
+          never beside it. */}
+      <div className="shrink-0 h-14 sm:h-16" />
+
+      {/* Title + CTAs sit above the video, not overlaid on it, and share
+          the video's own centered column (not the full screen width). In
           Arabic the title reads at the (right) start edge and the CTAs
           sit at the (left) end edge; English mirrors automatically since
-          this follows the page's own dir, not a hardcoded side. Extra
-          end-side padding keeps this clear of the fixed close button. */}
-      <div className="shrink-0 flex flex-wrap items-start justify-between gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 pe-16 sm:pe-20">
+          this follows the page's own dir, not a hardcoded side. */}
+      <div className="shrink-0 w-full max-w-md mx-auto flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
         <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1 min-w-0">{cake.name}</h3>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onToggleMute}
-            aria-label={muted ? t.unmute : t.mute}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          >
-            <SpeakerIcon muted={muted} />
-          </button>
-          {ctaButtons}
-        </div>
+        <div className="flex items-center gap-2 shrink-0">{ctaButtons}</div>
       </div>
 
-      {/* Video, centered in the remaining space with the 90%-opacity
-          black backdrop showing through around it. The box itself stays
-          fully opaque black (standard video-player backing) so it never
-          looks broken/see-through before a frame has painted — only the
+      {/* Video, centered in the remaining (now shorter, since the header
+          above takes its own space) height, with the 90%-opacity black
+          backdrop showing through around it. The box itself stays fully
+          opaque black (standard video-player backing) so it never looks
+          broken/see-through before a frame has painted — only the
           surrounding backdrop is the translucent one. */}
-      <div className="relative flex-1 min-h-0 flex items-center justify-center px-2 sm:px-4 pb-4">
+      <div className="relative flex-1 min-h-0 w-full max-w-md mx-auto flex items-center justify-center px-2 sm:px-4 pb-4">
         <div className="relative h-full max-w-full aspect-[9/16] bg-black rounded-xl overflow-hidden">
           <video
             ref={videoRef}
@@ -251,8 +247,8 @@ function VideoFeedItem({
             className="absolute inset-0 w-full h-full object-contain"
           />
 
-          {/* Tap-to-play/pause — sits behind the description (lower
-              z-index), so its "Show more" / scroll taps still land. */}
+          {/* Tap-to-play/pause — sits behind the mute button and
+              description (lower z-index), so their taps still land. */}
           <button
             type="button"
             onClick={togglePlayPause}
@@ -264,6 +260,17 @@ function VideoFeedItem({
                 <PlayGlyph playing={false} />
               </span>
             )}
+          </button>
+
+          {/* Mute lives on the player itself, the conventional spot for
+              it, rather than competing with title/CTAs up top. */}
+          <button
+            type="button"
+            onClick={onToggleMute}
+            aria-label={muted ? t.unmute : t.mute}
+            className="absolute top-3 end-3 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            <SpeakerIcon muted={muted} />
           </button>
 
           {/* Description overlay — anchored to the video's own box, so it
