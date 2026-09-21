@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
 import { WHATSAPP_NUMBER, buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
-import { PublicNavbar, CloseIcon } from "./navbar";
+import { PublicNavbar } from "./navbar";
 import { SOCIAL_LINKS } from "./social-links";
 import { PUBLIC_CONTAINER_CLASS } from "./container";
+import { VideoFeed } from "./video-feed";
 
 type Lang = "en" | "ar";
 
@@ -105,8 +106,6 @@ export default function Home() {
   const [lang, setLang] = useState<Lang>("ar");
   const [videoGalleryOpen, setVideoGalleryOpen] = useState(false);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
-  const galleryVideoRef = useRef<HTMLVideoElement>(null);
-  const touchStartY = useRef<number | null>(null);
   const cakesRowRef = useRef<HTMLDivElement>(null);
   const [canScrollCakes, setCanScrollCakes] = useState(false);
   const dir = lang === "ar" ? "rtl" : "ltr";
@@ -117,14 +116,6 @@ export default function Home() {
     if (!el) return;
     el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
   };
-
-  useEffect(() => {
-    if (!videoGalleryOpen) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [videoGalleryOpen]);
 
   // Dynamic Baked Cake cards. Failure is swallowed on purpose: the
   // permanent Customize card must always render regardless of whether
@@ -206,34 +197,10 @@ export default function Home() {
     return () => window.removeEventListener("resize", checkOverflow);
   }, [displayCakes]);
 
-  useEffect(() => {
-    if (!videoGalleryOpen) return;
-    const video = galleryVideoRef.current;
-    if (!video) return;
-    video.currentTime = 0;
-    void video.play();
-  }, [videoGalleryOpen, activeVideoIndex]);
-
   const openVideoGallery = (cakeId: string) => {
     const index = videoCakes.findIndex((cake) => cake.id === cakeId);
     setActiveVideoIndex(index === -1 ? 0 : index);
     setVideoGalleryOpen(true);
-  };
-
-  const handleGalleryTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleGalleryTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
-    const deltaY = touchStartY.current - e.changedTouches[0].clientY;
-    touchStartY.current = null;
-    if (deltaY <= 60) return;
-    if (activeVideoIndex < videoCakes.length - 1) {
-      setActiveVideoIndex((index) => index + 1);
-    } else {
-      setVideoGalleryOpen(false);
-    }
   };
 
   return (
@@ -389,33 +356,14 @@ export default function Home() {
         `}</style>
       </section>
 
-      {videoGalleryOpen && videoCakes[activeVideoIndex] && (
-        <div
-          className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-          onTouchStart={handleGalleryTouchStart}
-          onTouchEnd={handleGalleryTouchEnd}
-        >
-          <button
-            type="button"
-            onClick={() => setVideoGalleryOpen(false)}
-            aria-label={t.nav.closeMenu}
-            className="absolute top-4 end-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition"
-          >
-            <CloseIcon className="text-white" />
-          </button>
-          <p className="text-white font-serif font-bold text-lg sm:text-xl mb-4 px-6 text-center">{videoCakes[activeVideoIndex].name}</p>
-          <video
-            key={videoCakes[activeVideoIndex].id}
-            ref={galleryVideoRef}
-            className="max-h-[75vh] max-w-full rounded-2xl"
-            controls
-            playsInline
-          >
-            <source src={videoCakes[activeVideoIndex].mediaUrl} type="video/mp4" />
-          </video>
-        </div>
+      {videoGalleryOpen && videoCakes.length > 0 && (
+        <VideoFeed
+          cakes={videoCakes}
+          startIndex={activeVideoIndex}
+          lang={lang}
+          whatsappMessage={t.whatsappCakeMessage}
+          onClose={() => setVideoGalleryOpen(false)}
+        />
       )}
 
       <section className="max-w-6xl mx-auto px-6 py-10 md:py-12">
