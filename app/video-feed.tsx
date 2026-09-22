@@ -155,7 +155,25 @@ function VideoFeedItem({
 }) {
   const t = VIDEO_FEED_T[lang];
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoBoxRef = useRef<HTMLDivElement>(null);
+  const [videoBoxWidth, setVideoBoxWidth] = useState<number | null>(null);
   const [userPaused, setUserPaused] = useState(false);
+
+  // The video's box is sized by aspect-ratio against its own available
+  // height, so its exact rendered width can't be expressed in CSS from
+  // the title/CTA row above it (a sibling, not a parent). Measuring it
+  // directly is what lets that row match the video's real left/right
+  // edges instead of an approximate max-width guess, and stays correct
+  // across any viewport resize.
+  useLayoutEffect(() => {
+    const box = videoBoxRef.current;
+    if (!box) return;
+    const update = () => setVideoBoxWidth(box.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
 
   // Only the active (fully in-view) item plays; a previous item pauses
   // the instant it stops being active. Nearby items get their metadata
@@ -212,13 +230,17 @@ function VideoFeedItem({
           never beside it. */}
       <div className="shrink-0 h-14 sm:h-16" />
 
-      {/* Title + one CTA sit above the video, not overlaid on it, and
-          share the video's own centered column (not the full screen
-          width). In Arabic the title reads at the (right) start edge and
-          the CTA sits at the (left) end edge; English mirrors
-          automatically since this follows the page's own dir, not a
-          hardcoded side. */}
-      <div className="shrink-0 w-full max-w-md mx-auto flex items-center justify-between gap-4 px-4 pb-3">
+      {/* Title + one CTA sit above the video, not overlaid on it, sized to
+          the video's own measured width (see videoBoxWidth) so their
+          left/right edges land exactly on the video's edges rather than
+          an approximate column width. In Arabic the title reads at the
+          (right) start edge and the CTA sits at the (left) end edge;
+          English mirrors automatically since this follows the page's own
+          dir, not a hardcoded side. */}
+      <div
+        className="shrink-0 max-w-md mx-auto flex items-center justify-between gap-4 px-2 pb-3"
+        style={videoBoxWidth ? { width: videoBoxWidth } : undefined}
+      >
         <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1 min-w-0">{cake.name}</h3>
         {ctaButtons}
       </div>
@@ -230,7 +252,7 @@ function VideoFeedItem({
           broken/see-through before a frame has painted — only the
           surrounding backdrop is the translucent one. */}
       <div className="relative flex-1 min-h-0 w-full max-w-md mx-auto flex items-center justify-center px-2 sm:px-4 pb-4">
-        <div className="relative h-full max-w-full aspect-[9/16] bg-black rounded-xl overflow-hidden">
+        <div ref={videoBoxRef} className="relative h-full max-w-full aspect-[9/16] bg-black rounded-xl overflow-hidden">
           <video
             ref={videoRef}
             src={cake.mediaUrl}
