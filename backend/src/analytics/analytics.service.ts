@@ -27,7 +27,7 @@ export interface AnalyticsOverview {
     conversionRate: number;
   };
   business: {
-    registeredUsers: number;
+    users: { buyers: number; admins: number };
     bakedCakes: { total: number; active: number; paused: number };
   };
 }
@@ -108,11 +108,11 @@ export class AnalyticsService {
     const totalActiveSeconds = sessions.reduce((sum, s) => sum + s.active_seconds, 0);
     const avgActiveSeconds = total > 0 ? totalActiveSeconds / total : 0;
 
-    const [customizeClicked, completed, whatsappOrders, registeredUsers, cakeTotals] = await Promise.all([
+    const [customizeClicked, completed, whatsappOrders, users, cakeTotals] = await Promise.all([
       this.countEvents(client, 'customize_started', start, end),
       this.countEvents(client, 'customization_completed', start, end),
       this.countEvents(client, 'customization_whatsapp_clicked', start, end),
-      this.countRegisteredUsers(client),
+      this.countUsersByRole(client),
       this.countBakedCakes(client),
     ]);
 
@@ -132,7 +132,7 @@ export class AnalyticsService {
         conversionRate: percentOf(whatsappOrders, customizeClicked),
       },
       business: {
-        registeredUsers,
+        users,
         bakedCakes: cakeTotals,
       },
     };
@@ -163,13 +163,20 @@ export class AnalyticsService {
 
   // Lifetime totals, not affected by the date filter (the Admin UI
   // labels these explicitly as totals — see the V1 spec).
-  private async countRegisteredUsers(client: ReturnType<SupabaseService['getClient']>): Promise<number> {
-    const { count, error } = await client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'buyer');
-    if (error) {
-      this.logger.error(`Failed to count registered users: ${error.message}`);
-      throw new InternalServerErrorException('Unable to load analytics overview.');
+  private async countUsersByRole(
+    client: ReturnType<SupabaseService['getClient']>,
+  ): Promise<{ buyers: number; admins: number }> {
+    const [buyersRes, adminsRes] = await Promise.all([
+      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'buyer'),
+      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+    ]);
+    for (const res of [buyersRes, adminsRes]) {
+      if (res.error) {
+        this.logger.error(`Failed to count users by role: ${res.error.message}`);
+        throw new InternalServerErrorException('Unable to load analytics overview.');
+      }
     }
-    return count ?? 0;
+    return { buyers: buyersRes.count ?? 0, admins: adminsRes.count ?? 0 };
   }
 
   private async countBakedCakes(

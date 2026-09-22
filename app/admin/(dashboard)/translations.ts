@@ -37,8 +37,9 @@ export const adminT: Record<Lang, {
       title: string;
       registeredUsers: string;
       lifetimeTotal: string;
+      buyers: string;
+      admins: string;
       ourWorkCakes: string;
-      total: string;
       active: string;
       paused: string;
     };
@@ -262,8 +263,9 @@ export const adminT: Record<Lang, {
         title: "Business",
         registeredUsers: "Registered Users",
         lifetimeTotal: "lifetime total",
+        buyers: "Buyers",
+        admins: "Admins",
         ourWorkCakes: "Our Work Cakes",
-        total: "Total",
         active: "Active",
         paused: "Paused",
       },
@@ -486,8 +488,9 @@ export const adminT: Record<Lang, {
         title: "الأعمال",
         registeredUsers: "المستخدمون المسجّلون",
         lifetimeTotal: "إجمالي كلي",
+        buyers: "مشترون",
+        admins: "مديرون",
         ourWorkCakes: "تورتات أعمالنا",
-        total: "الإجمالي",
         active: "نشطة",
         paused: "متوقفة",
       },

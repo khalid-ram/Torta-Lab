@@ -65,7 +65,7 @@ export interface AnalyticsOverview {
     conversionRate: number;
   };
   business: {
-    registeredUsers: number;
+    users: { buyers: number; admins: number };
     bakedCakes: { total: number; active: number; paused: number };
   };
 }

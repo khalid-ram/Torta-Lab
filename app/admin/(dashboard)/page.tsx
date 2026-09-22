@@ -34,6 +34,46 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
   );
 }
 
+const DONUT_COLORS = ["#D96C7C", "#79665E"];
+
+function Donut({ segments, size = 88, thickness = 14 }: { segments: { value: number; color: string }[]; size?: number; thickness?: number }) {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  const holeSize = size - thickness * 2;
+
+  let background = "#F0ECE7";
+  if (total > 0) {
+    let cumulative = 0;
+    const stops = segments.map((seg) => {
+      const startPct = (cumulative / total) * 100;
+      cumulative += seg.value;
+      const endPct = (cumulative / total) * 100;
+      return `${seg.color} ${startPct}% ${endPct}%`;
+    });
+    background = `conic-gradient(${stops.join(", ")})`;
+  }
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size, borderRadius: "9999px", background }}>
+      <div
+        className="absolute inset-0 m-auto rounded-full bg-[#FFFCF8] flex items-center justify-center"
+        style={{ width: holeSize, height: holeSize }}
+      >
+        <span className="text-lg font-serif font-bold text-[#33221C]">{total}</span>
+      </div>
+    </div>
+  );
+}
+
+function LegendRow({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-[#79665E]">{label}</span>
+      <span className="font-semibold text-[#33221C]">{value}</span>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const { state } = useAuth();
   const { lang, dir } = useAdminUi();
@@ -187,26 +227,35 @@ export default function AdminDashboardPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-[#FFFCF8] border border-[#E8D8CC] rounded-2xl p-5">
                 <p className="text-sm text-[#79665E]">{t.dashboard.business.registeredUsers}</p>
-                <p className="mt-1.5 text-2xl font-serif font-bold text-[#33221C]">{overview.business.registeredUsers}</p>
-                <p className="mt-1 text-xs text-[#A08D80]">{t.dashboard.business.lifetimeTotal}</p>
+                <div className="mt-3 flex items-center gap-5">
+                  <Donut
+                    segments={[
+                      { value: overview.business.users.buyers, color: DONUT_COLORS[0] },
+                      { value: overview.business.users.admins, color: DONUT_COLORS[1] },
+                    ]}
+                  />
+                  <div className="space-y-1.5">
+                    <LegendRow color={DONUT_COLORS[0]} label={t.dashboard.business.buyers} value={overview.business.users.buyers} />
+                    <LegendRow color={DONUT_COLORS[1]} label={t.dashboard.business.admins} value={overview.business.users.admins} />
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-[#A08D80]">{t.dashboard.business.lifetimeTotal}</p>
               </div>
               <div className="bg-[#FFFCF8] border border-[#E8D8CC] rounded-2xl p-5">
                 <p className="text-sm text-[#79665E]">{t.dashboard.business.ourWorkCakes}</p>
-                <div className="mt-1.5 flex items-center gap-5">
-                  <div>
-                    <p className="text-2xl font-serif font-bold text-[#33221C]">{overview.business.bakedCakes.total}</p>
-                    <p className="text-xs text-[#A08D80]">{t.dashboard.business.total}</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif font-bold text-[#33221C]">{overview.business.bakedCakes.active}</p>
-                    <p className="text-xs text-[#A08D80]">{t.dashboard.business.active}</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif font-bold text-[#33221C]">{overview.business.bakedCakes.paused}</p>
-                    <p className="text-xs text-[#A08D80]">{t.dashboard.business.paused}</p>
+                <div className="mt-3 flex items-center gap-5">
+                  <Donut
+                    segments={[
+                      { value: overview.business.bakedCakes.active, color: DONUT_COLORS[0] },
+                      { value: overview.business.bakedCakes.paused, color: DONUT_COLORS[1] },
+                    ]}
+                  />
+                  <div className="space-y-1.5">
+                    <LegendRow color={DONUT_COLORS[0]} label={t.dashboard.business.active} value={overview.business.bakedCakes.active} />
+                    <LegendRow color={DONUT_COLORS[1]} label={t.dashboard.business.paused} value={overview.business.bakedCakes.paused} />
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-[#A08D80]">{t.dashboard.business.lifetimeTotal}</p>
+                <p className="mt-3 text-xs text-[#A08D80]">{t.dashboard.business.lifetimeTotal}</p>
               </div>
             </div>
           </div>
