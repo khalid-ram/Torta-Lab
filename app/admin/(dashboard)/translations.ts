@@ -6,7 +6,45 @@ export const adminT: Record<Lang, {
   forbidden: { title: string; body: string; home: string };
   loading: string;
   close: string;
-  dashboard: { welcome: string; manageTitle: string; manageDesc: string; manageCta: string };
+  dashboard: {
+    title: string;
+    welcome: string;
+    filter: {
+      today: string;
+      last7: string;
+      last30: string;
+      custom: string;
+      from: string;
+      to: string;
+      apply: string;
+    };
+    kpi: {
+      totalSessions: string;
+      engagedSessions: string;
+      bouncedSessions: string;
+      avgActiveTime: string;
+      ofSessions: string;
+    };
+    funnel: {
+      title: string;
+      customizeClicked: string;
+      completed: string;
+      whatsappOrders: string;
+      completionRate: string;
+      overallConversion: string;
+    };
+    business: {
+      title: string;
+      registeredUsers: string;
+      lifetimeTotal: string;
+      ourWorkCakes: string;
+      total: string;
+      active: string;
+      paused: string;
+    };
+    loadError: string;
+    empty: string;
+  };
   users: {
     title: string;
     subtitle: string;
@@ -194,10 +232,43 @@ export const adminT: Record<Lang, {
     },
     loading: "Loading...",
     dashboard: {
+      title: "Admin Overview",
       welcome: "Welcome",
-      manageTitle: "Manage your users",
-      manageDesc: "View, search, and update buyer and admin accounts.",
-      manageCta: "Open User Management",
+      filter: {
+        today: "Today",
+        last7: "Last 7 Days",
+        last30: "Last 30 Days",
+        custom: "Custom Range",
+        from: "From",
+        to: "To",
+        apply: "Apply",
+      },
+      kpi: {
+        totalSessions: "Total Sessions",
+        engagedSessions: "Engaged Sessions",
+        bouncedSessions: "Bounced Sessions",
+        avgActiveTime: "Avg. Active Time / Session",
+        ofSessions: "of sessions",
+      },
+      funnel: {
+        title: "Customization Funnel",
+        customizeClicked: "Customize Clicked",
+        completed: "Completed",
+        whatsappOrders: "WhatsApp Orders",
+        completionRate: "Completion Rate",
+        overallConversion: "overall conversion",
+      },
+      business: {
+        title: "Business",
+        registeredUsers: "Registered Users",
+        lifetimeTotal: "lifetime total",
+        ourWorkCakes: "Our Work Cakes",
+        total: "Total",
+        active: "Active",
+        paused: "Paused",
+      },
+      loadError: "Could not load analytics. Please try again.",
+      empty: "No sessions in this period yet.",
     },
     users: {
       title: "User Management",
@@ -385,10 +456,43 @@ export const adminT: Record<Lang, {
     },
     loading: "جارٍ التحميل...",
     dashboard: {
+      title: "نظرة عامة",
       welcome: "أهلاً بيك",
-      manageTitle: "إدارة المستخدمين",
-      manageDesc: "استعرض وابحث وحدّث حسابات المشترين والمديرين.",
-      manageCta: "افتح إدارة المستخدمين",
+      filter: {
+        today: "اليوم",
+        last7: "آخر ٧ أيام",
+        last30: "آخر ٣٠ يوم",
+        custom: "فترة مخصصة",
+        from: "من",
+        to: "إلى",
+        apply: "تطبيق",
+      },
+      kpi: {
+        totalSessions: "إجمالي الزيارات",
+        engagedSessions: "زيارات فعّالة",
+        bouncedSessions: "زيارات عابرة",
+        avgActiveTime: "متوسط وقت التفاعل / زيارة",
+        ofSessions: "من الزيارات",
+      },
+      funnel: {
+        title: "مسار التخصيص",
+        customizeClicked: "بدأ التخصيص",
+        completed: "أكمل التخصيص",
+        whatsappOrders: "طلبات واتساب",
+        completionRate: "نسبة الإكمال",
+        overallConversion: "التحويل الكلي",
+      },
+      business: {
+        title: "الأعمال",
+        registeredUsers: "المستخدمون المسجّلون",
+        lifetimeTotal: "إجمالي كلي",
+        ourWorkCakes: "تورتات أعمالنا",
+        total: "الإجمالي",
+        active: "نشطة",
+        paused: "متوقفة",
+      },
+      loadError: "تعذّر تحميل بيانات التحليلات. حاول مرة أخرى.",
+      empty: "لا توجد زيارات في هذه الفترة بعد.",
     },
     users: {
       title: "إدارة المستخدمين",

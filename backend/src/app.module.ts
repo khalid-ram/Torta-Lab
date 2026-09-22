@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { BakedCakesModule } from './baked-cakes/baked-cakes.module';
 import { CustomizationModule } from './customization/customization.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CustomizationModule } from './customization/customization.module';
     UsersModule,
     BakedCakesModule,
     CustomizationModule,
+    AnalyticsModule,
   ],
   controllers: [HealthController],
 })

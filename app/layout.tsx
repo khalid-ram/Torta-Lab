@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Markazi_Text, IBM_Plex_Sans_Arabic } from "next/font/google";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { AnalyticsProvider } from "@/lib/analytics/provider";
 import "./globals.css";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-poppins" });
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ar" dir="rtl" className={`${poppins.variable} ${markazi.variable} ${plexArabic.variable}`}>
       <body>
         <AuthProvider>{children}</AuthProvider>
+        <AnalyticsProvider />
       </body>
     </html>
   );

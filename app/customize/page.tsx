@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
 import { getPublicCustomization, type CoreStepKey, type PublicCustomizationField } from "@/lib/api/customization";
+import { startNewCustomizeAttempt, trackCustomizationCompleted, trackCustomizationWhatsappClicked } from "@/lib/analytics/customize-events";
 import { PublicNavbar } from "../navbar";
 import { CakeProgress } from "./cake-progress";
 import { buildCakeVisualModel } from "./cake-visual-model";
@@ -85,6 +86,7 @@ export default function CustomizePage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
       setState(defaultState);
       window.history.replaceState(null, "", "/customize");
+      startNewCustomizeAttempt();
     } else {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -246,6 +248,19 @@ export default function CustomizePage() {
   }, [state, fields]);
   const cakeVisual = useMemo(() => buildCakeVisualModel(state, requiredChecks), [state, requiredChecks]);
 
+  // "Customization Completed" per the analytics spec: reaching Review
+  // with every currently applicable required field valid — reusing
+  // requiredChecks (the same source of truth progress% is built from)
+  // rather than re-deriving a second notion of "complete". Repeated
+  // visits to an already-valid Review are naturally deduplicated by
+  // trackCustomizationCompleted's per-attempt flag.
+  useEffect(() => {
+    const onReview = currentDescriptor.kind === "core" && currentDescriptor.id === "review";
+    if (onReview && requiredChecks.length > 0 && requiredChecks.every(Boolean)) {
+      trackCustomizationCompleted();
+    }
+  }, [currentDescriptor, requiredChecks]);
+
   const handleFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => set({ refPhotoDataUrl: reader.result as string });
@@ -301,6 +316,7 @@ export default function CustomizePage() {
       return;
     }
     setError("");
+    trackCustomizationWhatsappClicked();
     window.open(buildWhatsAppUrl(buildMessage()), "_blank");
     setSent(true);
   };
