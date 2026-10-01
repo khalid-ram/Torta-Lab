@@ -7,8 +7,8 @@ import { PUBLIC_CONTAINER_CLASS } from "./container";
 export type Lang = "en" | "ar";
 
 const NAV_T = {
-  en: { home: "Home", cakes: "Our Work", customize: "Customize", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout", menu: "Open menu", closeMenu: "Close menu" },
-  ar: { home: "الرئيسية", cakes: "شغلنا", customize: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج", menu: "افتح القائمة", closeMenu: "اغلق القائمة" },
+  en: { home: "Home", cakes: "Our Work", customize: "Customize", customizeCta: "Customize Your Cake", about: "About", signIn: "Sign In", signUp: "Sign Up", logout: "Logout", menu: "Open menu", closeMenu: "Close menu" },
+  ar: { home: "الرئيسية", cakes: "شغلنا", customize: "صمّم تورتتك", customizeCta: "صمّم تورتتك", about: "من نحن", signIn: "تسجيل دخول", signUp: "إنشاء حساب", logout: "تسجيل الخروج", menu: "افتح القائمة", closeMenu: "اغلق القائمة" },
 };
 
 export function CloseIcon({ className = "text-[#633B2C]" }: { className?: string }) {
@@ -151,15 +151,30 @@ export function PublicNavbar({ lang, onLangChange }: { lang: Lang; onLangChange:
                 </>
               )}
             </button>
-            {state.status === "logged-in" && (
-              <UserMenu name={state.user.name} logoutLabel={t.logout} onLogout={() => logout()} />
-            )}
-            {state.status !== "logged-in" && (
-              <div className="flex items-center gap-2 md:gap-3">
-                <Link href="/sign-in" className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.signIn}</Link>
-                <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.signUp}</Link>
-              </div>
-            )}
+            {/* Desktop only: Sign In/Sign Up (or the account menu) stay in
+                the top bar. On mobile they move into the burger menu so
+                the mobile row can carry one compact primary CTA instead. */}
+            <div className="hidden md:flex items-center gap-2 md:gap-3">
+              {state.status === "logged-in" ? (
+                <UserMenu name={state.user.name} logoutLabel={t.logout} onLogout={() => logout()} />
+              ) : (
+                <>
+                  <Link href="/sign-in" className="border border-[#633B2C]/50 text-[#633B2C] px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-[#F8EEE5] transition whitespace-nowrap">{t.signIn}</Link>
+                  <Link href="/sign-up" className="bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 md:px-5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition whitespace-nowrap">{t.signUp}</Link>
+                </>
+              )}
+            </div>
+
+            {/* Mobile only: a single primary CTA replaces Sign In/Sign Up
+                (and the account menu) in the top row. /customize?new=1 is
+                the same fresh-session entry point used everywhere else —
+                no separate reset logic lives here. */}
+            <Link
+              href="/customize?new=1"
+              className="md:hidden bg-[#D96C7C] hover:bg-[#C55769] text-white px-3.5 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap"
+            >
+              {t.customizeCta}
+            </Link>
           </div>
         </div>
       </nav>
@@ -189,23 +204,65 @@ export function PublicNavbar({ lang, onLangChange }: { lang: Lang; onLangChange:
               <Link href="/customize?new=1" onClick={() => setMobileMenuOpen(false)} className="py-3 border-b border-[#F3EAE0]">{t.customize}</Link>
               <Link href="/#about" onClick={() => setMobileMenuOpen(false)} className="py-3">{t.about}</Link>
             </nav>
-            <div className="mt-auto px-5 py-5 border-t border-[#E8D8CC] flex items-center justify-center">
-              <button
-                onClick={() => onLangChange(lang === "ar" ? "en" : "ar")}
-                className="flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
-              >
-                {lang === "ar" ? (
-                  <>
-                    <span aria-hidden="true">🇬🇧</span>
-                    EN
-                  </>
-                ) : (
-                  <>
-                    <span aria-hidden="true">🇪🇬</span>
-                    عربي
-                  </>
-                )}
-              </button>
+
+            {/* Auth actions live here on mobile instead of the top row —
+                Sign In/Sign Up when logged out, account + logout when
+                logged in. Never both at once. */}
+            <div className="mt-auto border-t border-[#E8D8CC]">
+              {state.status === "logged-in" ? (
+                <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-[#F3EAE0]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-8 h-8 rounded-full bg-[#D96C7C] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                      {state.user.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-sm font-medium text-[#633B2C] truncate">{state.user.name}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="shrink-0 text-sm font-medium text-[#633B2C] hover:text-[#D96C7C] transition"
+                  >
+                    {t.logout}
+                  </button>
+                </div>
+              ) : (
+                <div className="px-5 py-4 flex flex-col gap-2.5 border-b border-[#F3EAE0]">
+                  <Link
+                    href="/sign-in"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="border border-[#633B2C]/50 text-[#633B2C] text-center px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[#F8EEE5] transition"
+                  >
+                    {t.signIn}
+                  </Link>
+                  <Link
+                    href="/sign-up"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="bg-[#D96C7C] hover:bg-[#C55769] text-white text-center px-4 py-2.5 rounded-full text-sm font-semibold transition"
+                  >
+                    {t.signUp}
+                  </Link>
+                </div>
+              )}
+              <div className="px-5 py-5 flex items-center justify-center">
+                <button
+                  onClick={() => onLangChange(lang === "ar" ? "en" : "ar")}
+                  className="flex items-center gap-1.5 text-sm font-medium text-[#633B2C] hover:text-[#79665E] transition"
+                >
+                  {lang === "ar" ? (
+                    <>
+                      <span aria-hidden="true">🇬🇧</span>
+                      EN
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true">🇪🇬</span>
+                      عربي
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
