@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicBakedCakes, type PublicBakedCake } from "@/lib/api/baked-cakes";
 import { WHATSAPP_NUMBER, buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
+import { occasionLabel } from "@/lib/occasions";
+import { formatPublicPrice } from "@/lib/price";
 import { PublicNavbar } from "./navbar";
 import { SOCIAL_LINKS } from "./social-links";
 import { PUBLIC_CONTAINER_CLASS } from "./container";
@@ -19,15 +21,14 @@ const T = {
     cakes: {
       title: "Our Work",
       subtitle: "A look at cakes we’ve created, each one made fresh for a special celebration.",
-      videoLabel: "Video",
       playVideo: "Play video",
       previousSlide: "Previous",
       nextSlide: "Next",
     },
     orderNow: "Order Now",
     customizeYours: "Customize Yours",
-    whatsappCakeMessage: (name: string) =>
-      `Hello 👋\nI'd like to order this cake: ${name}\nPlease let me know the price and availability.`,
+    whatsappCakeMessage: (name: string, price?: string | null) =>
+      `Hello 👋\nI'd like to order this cake: ${name}${price ? `\nPrice: ${price}` : ""}\n${price ? "Please confirm availability." : "Please let me know the price and availability."}`,
     whyUs: {
       title: "Why Torta Lab?",
       values: [
@@ -63,15 +64,14 @@ const T = {
     cakes: {
       title: "شغلنا",
       subtitle: "شوف بعض التورتات اللي عملناها فريش مخصوص لمناسبات مميزة.",
-      videoLabel: "فيديو",
       playVideo: "شغّل الفيديو",
       previousSlide: "السابق",
       nextSlide: "التالي",
     },
     orderNow: "اطلب الآن",
     customizeYours: "صمم تورتتك",
-    whatsappCakeMessage: (name: string) =>
-      `مرحبًا 👋\nأريد طلب هذه التورتة: ${name}\nمن فضلك أخبرني بالسعر والتوفر.`,
+    whatsappCakeMessage: (name: string, price?: string | null) =>
+      `مرحبًا 👋\nأريد طلب هذه التورتة: ${name}${price ? `\nالسعر: ${price}` : ""}\n${price ? "من فضلك أكّد التوفر." : "من فضلك أخبرني بالسعر والتوفر."}`,
     whyUs: {
       title: "ليه تورتا لاب؟",
       values: [
@@ -269,26 +269,35 @@ export default function Home() {
           ref={cakesRowRef}
           className={`cakes-row mt-10 flex gap-5 md:gap-8 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 ${canScrollCakes ? "" : "md:justify-center"}`}
         >
-          {displayCakes.map((cake) => (
-            <div
-              key={cake.id}
-              className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-black"
-            >
-              <Image
-                src={cake.mediaType === "video" ? cake.thumbnailUrl ?? "" : cake.mediaUrl}
-                alt={cake.name}
-                fill
-                sizes="(min-width: 768px) 18rem, 70vw"
-                className="object-cover"
-              />
+          {displayCakes.map((cake) => {
+            const badge = occasionLabel(cake.occasion, lang);
+            const priceText = formatPublicPrice(cake.recommendedSellingPrice, lang);
+            return (
+              <div
+                key={cake.id}
+                className="relative shrink-0 w-[70vw] sm:w-64 md:w-72 aspect-[9/16] snap-center rounded-3xl overflow-hidden shadow-[0_4px_20px_rgba(99,59,44,0.08)] bg-black"
+              >
+                <Image
+                  src={cake.mediaType === "video" ? cake.thumbnailUrl ?? "" : cake.mediaUrl}
+                  alt={cake.name}
+                  fill
+                  sizes="(min-width: 768px) 18rem, 70vw"
+                  className="object-cover"
+                />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
-              {cake.mediaType === "video" && (
-                <>
+                {/* Occasion badge replaces the old generic "Video" label —
+                    photo/video identity is already obvious from the media
+                    itself (and the play icon below), so no badge shows at
+                    all when the cake has no occasion set. */}
+                {badge && (
                   <span className="absolute start-4 top-4 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold text-white">
-                    {t.cakes.videoLabel}
+                    {badge}
                   </span>
+                )}
+
+                {cake.mediaType === "video" && (
                   <button
                     type="button"
                     onClick={() => openVideoGallery(cake.id)}
@@ -299,31 +308,34 @@ export default function Home() {
                       <PlayIcon className="w-6 h-6 text-white ms-1" />
                     </span>
                   </button>
-                </>
-              )}
-
-              <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-3">
-                <h3 className="font-serif font-bold text-lg text-white line-clamp-2">{cake.name}</h3>
-                {cake.isAvailableToOrder ? (
-                  <a
-                    href={buildWhatsAppUrl(t.whatsappCakeMessage(cake.name))}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center justify-center gap-2 text-center bg-[#25D366] hover:bg-[#20BD5A] border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
-                  >
-                    <WhatsAppIcon /> {t.orderNow}
-                  </a>
-                ) : (
-                  <Link
-                    href="/customize?new=1"
-                    className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
-                  >
-                    {t.customizeYours}
-                  </Link>
                 )}
+
+                <div className="absolute inset-x-0 bottom-0 p-4 flex flex-col gap-2">
+                  <div>
+                    <h3 className="font-serif font-bold text-lg text-white line-clamp-2">{cake.name}</h3>
+                    {priceText && <p className="text-sm font-semibold text-[#F3C7CC]">{priceText}</p>}
+                  </div>
+                  {cake.isAvailableToOrder ? (
+                    <a
+                      href={buildWhatsAppUrl(t.whatsappCakeMessage(cake.name, priceText))}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center justify-center gap-2 text-center bg-[#25D366] hover:bg-[#20BD5A] border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
+                    >
+                      <WhatsAppIcon /> {t.orderNow}
+                    </a>
+                  ) : (
+                    <Link
+                      href="/customize?new=1"
+                      className="w-full text-center bg-[#D96C7C]/70 hover:bg-[#D96C7C]/85 border border-white/60 backdrop-blur-lg text-white rounded-full px-4 py-2.5 font-semibold text-sm transition"
+                    >
+                      {t.customizeYours}
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Static, frontend-owned card — never backed by baked_cakes data.
               Always last: it must never be the first card when an active

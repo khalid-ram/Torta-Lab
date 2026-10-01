@@ -1,4 +1,5 @@
 import { ApiError, extractMessage, request } from "./client";
+import type { Occasion } from "../occasions";
 
 export { ApiError as BakedCakesApiError, NetworkError as BakedCakesNetworkError } from "./client";
 
@@ -19,6 +20,13 @@ export interface BakedCake {
   media_path: string;
   thumbnail_url: string | null;
   thumbnail_path: string | null;
+  occasion: Occasion | null;
+  // Admin-only values — present here because this type backs the Admin
+  // API response only; PublicBakedCake below is the public shape and
+  // deliberately omits cost/actual_selling_price entirely.
+  cost: number | null;
+  recommended_selling_price: number | null;
+  actual_selling_price: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +39,8 @@ export interface PublicBakedCake {
   mediaType: MediaType;
   mediaUrl: string;
   thumbnailUrl: string | null;
+  occasion: Occasion | null;
+  recommendedSellingPrice: number | null;
 }
 
 export interface Pagination {
@@ -55,6 +65,12 @@ export interface BakedCakeFormFields {
   is_available_to_order: boolean;
   status: CakeStatus;
   media_type: MediaType;
+  // null = left blank (occasion unset / price not entered) — distinct
+  // from the 0 a money field can validly hold (see baked-cakes.service.ts).
+  occasion: Occasion | null;
+  cost: number | null;
+  recommended_selling_price: number | null;
+  actual_selling_price: number | null;
   media?: File;
   thumbnail?: File;
 }
@@ -66,6 +82,16 @@ function toFormData(fields: BakedCakeFormFields | Partial<BakedCakeFormFields>):
   if (fields.is_available_to_order !== undefined) formData.set("is_available_to_order", String(fields.is_available_to_order));
   if (fields.status !== undefined) formData.set("status", fields.status);
   if (fields.media_type !== undefined) formData.set("media_type", fields.media_type);
+  // An empty string is how "cleared / not entered" travels over
+  // multipart form data; the backend transforms it back to null.
+  if (fields.occasion !== undefined) formData.set("occasion", fields.occasion ?? "");
+  if (fields.cost !== undefined) formData.set("cost", fields.cost === null ? "" : String(fields.cost));
+  if (fields.recommended_selling_price !== undefined) {
+    formData.set("recommended_selling_price", fields.recommended_selling_price === null ? "" : String(fields.recommended_selling_price));
+  }
+  if (fields.actual_selling_price !== undefined) {
+    formData.set("actual_selling_price", fields.actual_selling_price === null ? "" : String(fields.actual_selling_price));
+  }
   if (fields.media) formData.set("media", fields.media);
   if (fields.thumbnail) formData.set("thumbnail", fields.thumbnail);
   return formData;

@@ -4,11 +4,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import * as api from "@/lib/api/baked-cakes";
+import { OCCASION_VALUES, occasionLabel, type Occasion } from "@/lib/occasions";
 import { useAdminUi } from "../admin-context";
 import { adminT } from "../translations";
 
 function formatDate(iso: string, lang: "en" | "ar"): string {
   return new Date(iso).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+// Admin shows the raw entered amount (including 0) — unlike the public
+// "Free" treatment, which only applies to the Recommended Selling Price
+// on customer-facing surfaces. Admin needs to see exactly what was
+// entered for all three money fields.
+function formatMoney(n: number | null, lang: "en" | "ar", notSet: string): string {
+  if (n === null) return notSet;
+  const amount = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return lang === "ar" ? `${amount} ج.م` : `${amount} EGP`;
 }
 
 function KebabIcon() {
@@ -36,6 +47,47 @@ function ChevronIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[#79665E]">
       <path d="M6 9l6 6 6-6" />
     </svg>
+  );
+}
+
+// Shared input for the 3 optional money fields. Empty = null (not
+// entered); typing 0 is preserved as a real 0, never coerced to null —
+// see the Baked Cakes pricing spec's null-vs-0 distinction.
+function MoneyField({
+  label,
+  help,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  help: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <label className="text-sm font-semibold text-[#633B2C]">{label}</label>
+        <span className="group relative inline-flex">
+          <InfoIcon />
+          <span className="pointer-events-none absolute bottom-full start-1/2 -translate-x-1/2 mb-2 w-56 rounded-lg bg-[#33221C] text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition z-10">
+            {help}
+          </span>
+        </span>
+      </div>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step="0.01"
+        value={value === null ? "" : value}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        disabled={disabled}
+        className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white disabled:opacity-60"
+      />
+    </div>
   );
 }
 
@@ -124,6 +176,10 @@ const emptyForm = {
   is_available_to_order: false,
   status: "active" as api.CakeStatus,
   media_type: "image" as api.MediaType,
+  occasion: null as Occasion | null,
+  cost: null as number | null,
+  recommended_selling_price: null as number | null,
+  actual_selling_price: null as number | null,
 };
 
 export default function AdminBakedCakesPage() {
@@ -264,14 +320,21 @@ export default function AdminBakedCakesPage() {
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden md:block mt-6 border border-[#E8D8CC] rounded-2xl">
+          {/* Desktop table. Financial detail (Cost / Actual Selling Price)
+              stays in the edit modal rather than becoming two more
+              columns here — the list only surfaces the one price that's
+              ever public (Recommended Selling Price), so the table stays
+              scannable. overflow-x-auto is the fallback for narrower
+              desktop/tablet widths now that Occasion + Price were added. */}
+          <div className="hidden md:block mt-6 border border-[#E8D8CC] rounded-2xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#E8D8CC] bg-[#FFFCF8] text-start text-[#79665E]">
                   <th className="px-4 py-3 text-start font-semibold">{t.colId}</th>
                   <th className="px-4 py-3 text-start font-semibold">{t.colName}</th>
                   <th className="px-4 py-3 text-start font-semibold">{t.colDescription}</th>
+                  <th className="px-4 py-3 text-start font-semibold">{t.colOccasion}</th>
+                  <th className="px-4 py-3 text-start font-semibold">{t.colPrice}</th>
                   <th className="px-4 py-3 text-start font-semibold">{t.colAvailability}</th>
                   <th className="px-4 py-3 text-start font-semibold">{t.colStatus}</th>
                   <th className="px-4 py-3 text-start font-semibold">{t.colMedia}</th>
@@ -284,6 +347,8 @@ export default function AdminBakedCakesPage() {
                     <td className="px-4 py-3 text-[#B8A99B] font-mono text-xs" title={cake.id}>{shortId(cake.id)}</td>
                     <td className="px-4 py-3 font-medium text-[#33221C] max-w-[160px]">{cake.name}</td>
                     <td className="px-4 py-3 text-[#79665E] max-w-[220px] truncate">{cake.description}</td>
+                    <td className="px-4 py-3 text-[#79665E] whitespace-nowrap">{occasionLabel(cake.occasion, lang) ?? t.notSet}</td>
+                    <td className="px-4 py-3 text-[#79665E] whitespace-nowrap">{formatMoney(cake.recommended_selling_price, lang, t.notSet)}</td>
                     <td className="px-4 py-3 text-[#79665E]">{availabilityLabel(cake.is_available_to_order)}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${cake.status === "active" ? "bg-[#E8F5E9] text-[#2E7D32]" : "bg-[#F3EAE0] text-[#79665E]"}`}>
@@ -350,6 +415,14 @@ export default function AdminBakedCakesPage() {
                     {statusLabel(cake.status)}
                   </span>
                   <span className="text-xs text-[#79665E]">{availabilityLabel(cake.is_available_to_order)}</span>
+                  {cake.occasion && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#F8EEE5] text-[#633B2C]">
+                      {occasionLabel(cake.occasion, lang)}
+                    </span>
+                  )}
+                  {cake.recommended_selling_price !== null && (
+                    <span className="text-xs font-semibold text-[#633B2C]">{formatMoney(cake.recommended_selling_price, lang, t.notSet)}</span>
+                  )}
                   <a href={cake.media_url} target="_blank" rel="noreferrer" className="text-xs font-medium text-[#633B2C]">
                     {cake.media_type === "video" ? t.viewVideo : t.viewPhoto}
                   </a>
@@ -416,10 +489,21 @@ function BakedCakeFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { lang } = useAdminUi();
   const isCreate = !cake;
   const [form, setForm] = useState(
     cake
-      ? { name: cake.name, description: cake.description, is_available_to_order: cake.is_available_to_order, status: cake.status, media_type: cake.media_type }
+      ? {
+          name: cake.name,
+          description: cake.description,
+          is_available_to_order: cake.is_available_to_order,
+          status: cake.status,
+          media_type: cake.media_type,
+          occasion: cake.occasion,
+          cost: cake.cost,
+          recommended_selling_price: cake.recommended_selling_price,
+          actual_selling_price: cake.actual_selling_price,
+        }
       : emptyForm,
   );
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -580,6 +664,41 @@ function BakedCakeFormModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#633B2C] mb-1.5">{t.fieldOccasion}</label>
+              <select
+                value={form.occasion ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, occasion: (e.target.value || null) as api.BakedCake["occasion"] }))}
+                disabled={saving}
+                className="w-full border border-[#E8D8CC] rounded-xl px-4 py-2.5 text-sm bg-white disabled:opacity-60"
+              >
+                <option value="">{t.occasionNone}</option>
+                {OCCASION_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {occasionLabel(value, lang)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <MoneyField label={t.fieldCost} help={t.costHelp} value={form.cost} onChange={(v) => setForm((f) => ({ ...f, cost: v }))} disabled={saving} />
+              <MoneyField
+                label={t.fieldRecommendedPrice}
+                help={t.recommendedPriceHelp}
+                value={form.recommended_selling_price}
+                onChange={(v) => setForm((f) => ({ ...f, recommended_selling_price: v }))}
+                disabled={saving}
+              />
+              <MoneyField
+                label={t.fieldActualPrice}
+                help={t.actualPriceHelp}
+                value={form.actual_selling_price}
+                onChange={(v) => setForm((f) => ({ ...f, actual_selling_price: v }))}
+                disabled={saving}
+              />
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import { generateStoragePath } from '../common/utils/generate-storage-path';
 import { ListBakedCakesQueryDto } from './dto/list-baked-cakes-query.dto';
 import { CreateBakedCakeDto } from './dto/create-baked-cake.dto';
 import { UpdateBakedCakeDto } from './dto/update-baked-cake.dto';
+import type { Occasion } from './occasions';
 
 export type MediaType = 'image' | 'video';
 export type CakeStatus = 'active' | 'paused';
@@ -21,10 +22,20 @@ export interface BakedCakeRecord {
   media_path: string;
   thumbnail_url: string | null;
   thumbnail_path: string | null;
+  occasion: Occasion | null;
+  cost: number | null;
+  recommended_selling_price: number | null;
+  actual_selling_price: number | null;
   created_at: string;
   updated_at: string;
 }
 
+// Public-facing shape only — deliberately excludes cost and
+// actual_selling_price, which are internal business data (see the
+// Baked Cakes pricing spec's "Public vs Admin Data" section). This is
+// an explicit field-by-field mapping in listPublic() below, never a
+// passthrough of the raw DB row, so a new admin-only column added later
+// can't accidentally leak here just by being selected.
 export interface PublicBakedCake {
   id: string;
   name: string;
@@ -33,6 +44,8 @@ export interface PublicBakedCake {
   mediaType: MediaType;
   mediaUrl: string;
   thumbnailUrl: string | null;
+  occasion: Occasion | null;
+  recommendedSellingPrice: number | null;
 }
 
 export interface Pagination {
@@ -44,7 +57,7 @@ export interface Pagination {
 
 const BUCKET = 'baked-cakes';
 const COLUMNS =
-  'id, name, description, is_available_to_order, status, media_type, media_url, media_path, thumbnail_url, thumbnail_path, created_at, updated_at';
+  'id, name, description, is_available_to_order, status, media_type, media_url, media_path, thumbnail_url, thumbnail_path, occasion, cost, recommended_selling_price, actual_selling_price, created_at, updated_at';
 
 const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'];
@@ -137,7 +150,7 @@ export class BakedCakesService {
     const client = this.supabaseService.getClient();
     const { data, error } = await client
       .from('baked_cakes')
-      .select('id, name, description, is_available_to_order, media_type, media_url, thumbnail_url')
+      .select('id, name, description, is_available_to_order, media_type, media_url, thumbnail_url, occasion, recommended_selling_price')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(PUBLIC_LIMIT);
@@ -155,6 +168,8 @@ export class BakedCakesService {
       mediaType: row.media_type as MediaType,
       mediaUrl: row.media_url as string,
       thumbnailUrl: (row.thumbnail_url as string | null) ?? null,
+      occasion: (row.occasion as Occasion | null) ?? null,
+      recommendedSellingPrice: (row.recommended_selling_price as number | null) ?? null,
     }));
   }
 
@@ -207,6 +222,12 @@ export class BakedCakesService {
           media_path: mediaPath,
           thumbnail_url: thumbnailUrl,
           thumbnail_path: thumbnailPath,
+          // ?? only falls back on undefined/null, so an explicit 0 (e.g.
+          // "given away for free") is preserved and never coerced to null.
+          occasion: dto.occasion ?? null,
+          cost: dto.cost ?? null,
+          recommended_selling_price: dto.recommended_selling_price ?? null,
+          actual_selling_price: dto.actual_selling_price ?? null,
         })
         .select(COLUMNS)
         .single();
@@ -239,6 +260,13 @@ export class BakedCakesService {
       if (dto.is_available_to_order !== undefined) update.is_available_to_order = dto.is_available_to_order;
       if (dto.status !== undefined) update.status = dto.status;
       if (dto.media_type !== undefined) update.media_type = dto.media_type;
+      // These four are nullable, so `!== undefined` (not a truthy check)
+      // is what lets an explicit null through — clearing Occasion/Cost/
+      // Recommended/Actual back to "not entered" is a real, distinct edit.
+      if (dto.occasion !== undefined) update.occasion = dto.occasion;
+      if (dto.cost !== undefined) update.cost = dto.cost;
+      if (dto.recommended_selling_price !== undefined) update.recommended_selling_price = dto.recommended_selling_price;
+      if (dto.actual_selling_price !== undefined) update.actual_selling_price = dto.actual_selling_price;
 
       let newMediaPath: string | null = null;
       let newThumbnailPath: string | null = null;

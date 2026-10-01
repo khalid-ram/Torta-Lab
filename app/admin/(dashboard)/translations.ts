@@ -102,6 +102,8 @@ export const adminT: Record<Lang, {
     colId: string;
     colName: string;
     colDescription: string;
+    colOccasion: string;
+    colPrice: string;
     colAvailability: string;
     colStatus: string;
     colMedia: string;
@@ -141,6 +143,15 @@ export const adminT: Record<Lang, {
     viewPhoto: string;
     viewVideo: string;
     videoBadge: string;
+    fieldOccasion: string;
+    occasionNone: string;
+    fieldCost: string;
+    costHelp: string;
+    fieldRecommendedPrice: string;
+    recommendedPriceHelp: string;
+    fieldActualPrice: string;
+    actualPriceHelp: string;
+    notSet: string;
   };
   customization: {
     title: string;
@@ -328,6 +339,8 @@ export const adminT: Record<Lang, {
       colId: "ID",
       colName: "Cake Name",
       colDescription: "Description",
+      colOccasion: "Occasion",
+      colPrice: "Price",
       colAvailability: "Availability",
       colStatus: "Status",
       colMedia: "Media",
@@ -367,6 +380,15 @@ export const adminT: Record<Lang, {
       viewPhoto: "View Photo",
       viewVideo: "View Video",
       videoBadge: "Video",
+      fieldOccasion: "Occasion",
+      occasionNone: "No occasion",
+      fieldCost: "Cost",
+      costHelp: "Production cost.",
+      fieldRecommendedPrice: "Recommended Selling Price",
+      recommendedPriceHelp: "Normal/expected customer price. This is the price that may appear publicly.",
+      fieldActualPrice: "Actual Selling Price",
+      actualPriceHelp: "What this specific cake was actually sold for. Enter 0 if the cake was given for free. Leave empty if no actual selling price is recorded.",
+      notSet: "—",
     },
     customization: {
       title: "Customization",
@@ -553,6 +575,8 @@ export const adminT: Record<Lang, {
       colId: "المعرف",
       colName: "اسم التورتة",
       colDescription: "الوصف",
+      colOccasion: "المناسبة",
+      colPrice: "السعر",
       colAvailability: "التوفر",
       colStatus: "الحالة",
       colMedia: "الوسائط",
@@ -592,6 +616,15 @@ export const adminT: Record<Lang, {
       viewPhoto: "عرض الصورة",
       viewVideo: "عرض الفيديو",
       videoBadge: "فيديو",
+      fieldOccasion: "المناسبة",
+      occasionNone: "بدون مناسبة",
+      fieldCost: "التكلفة",
+      costHelp: "تكلفة إنتاج التورتة.",
+      fieldRecommendedPrice: "سعر البيع المقترح",
+      recommendedPriceHelp: "السعر المعتاد والمتوقع من العميل. هذا هو السعر الذي قد يظهر للعامة.",
+      fieldActualPrice: "سعر البيع الفعلي",
+      actualPriceHelp: "السعر الذي بيعت به هذه التورتة فعليًا. اكتب 0 إذا تم تقديم التورتة مجانًا، واترك الحقل فارغًا إذا لم يتم تسجيل سعر البيع الفعلي.",
+      notSet: "—",
     },
     customization: {
       title: "التخصيص",

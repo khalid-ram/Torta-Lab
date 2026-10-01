@@ -13,6 +13,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { PublicBakedCake } from "@/lib/api/baked-cakes";
 import { buildWhatsAppUrl, WhatsAppIcon } from "@/lib/whatsapp";
+import { occasionLabel } from "@/lib/occasions";
+import { formatPublicPrice } from "@/lib/price";
 import { CloseIcon } from "./navbar";
 
 type Lang = "en" | "ar";
@@ -151,7 +153,7 @@ function VideoFeedItem({
   near: boolean;
   muted: boolean;
   onToggleMute: () => void;
-  whatsappMessage: (name: string) => string;
+  whatsappMessage: (name: string, price?: string | null) => string;
 }) {
   const t = VIDEO_FEED_T[lang];
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -203,11 +205,14 @@ function VideoFeedItem({
     }
   };
 
+  const badge = occasionLabel(cake.occasion, lang);
+  const priceText = formatPublicPrice(cake.recommendedSellingPrice, lang);
+
   // One CTA only: Order Now (WhatsApp) when the cake can be ordered,
   // Customize Your Cake as the sole fallback when it can't — never both.
   const ctaButtons = cake.isAvailableToOrder ? (
     <a
-      href={buildWhatsAppUrl(whatsappMessage(cake.name))}
+      href={buildWhatsAppUrl(whatsappMessage(cake.name, priceText))}
       target="_blank"
       rel="noreferrer"
       className="shrink-0 flex items-center gap-1.5 whitespace-nowrap bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-3 py-1.5 sm:px-4 sm:py-2 font-semibold text-xs sm:text-sm transition outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -241,7 +246,13 @@ function VideoFeedItem({
         className="shrink-0 max-w-md mx-auto flex items-center justify-between gap-4 px-2 pb-3"
         style={videoBoxWidth ? { width: videoBoxWidth } : undefined}
       >
-        <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1 min-w-0">{cake.name}</h3>
+        <div className="min-w-0">
+          {badge && (
+            <span className="inline-block mb-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white">{badge}</span>
+          )}
+          <h3 className="font-serif font-bold text-white text-base sm:text-lg leading-snug line-clamp-1">{cake.name}</h3>
+          {priceText && <p className="text-xs sm:text-sm font-semibold text-[#F3C7CC]">{priceText}</p>}
+        </div>
         {ctaButtons}
       </div>
 
@@ -311,7 +322,7 @@ export function VideoFeed({
   cakes: PublicBakedCake[];
   startIndex: number;
   lang: Lang;
-  whatsappMessage: (name: string) => string;
+  whatsappMessage: (name: string, price?: string | null) => string;
   onClose: () => void;
 }) {
   const t = VIDEO_FEED_T[lang];
