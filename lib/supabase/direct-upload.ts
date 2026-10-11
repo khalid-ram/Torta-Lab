@@ -11,17 +11,25 @@ import { createClient } from "@supabase/supabase-js";
 
 const BUCKET = "baked-cakes";
 
-function getStorageClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
-  }
-  return createClient(url, anonKey);
-}
-
-export async function uploadToSignedPath(path: string, token: string, file: File | Blob, contentType: string): Promise<void> {
-  const client = getStorageClient();
+// supabaseUrl/supabaseAnonKey are passed in rather than read here via
+// process.env.NEXT_PUBLIC_* directly: this module is only ever reached
+// through a dynamic import() (see lib/api/baked-cakes.ts), and Next.js's
+// build-time inlining of NEXT_PUBLIC_* vars does not reliably apply
+// inside dynamically-imported chunks — confirmed in production, where
+// the reference survived as a runtime `process.env` lookup (which
+// doesn't exist in the browser) instead of being replaced with the
+// actual value, silently hanging every upload. Reading the vars in the
+// statically-bundled caller and passing the resolved strings down
+// sidesteps the issue entirely.
+export async function uploadToSignedPath(
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+  path: string,
+  token: string,
+  file: File | Blob,
+  contentType: string,
+): Promise<void> {
+  const client = createClient(supabaseUrl, supabaseAnonKey);
   const { error } = await client.storage.from(BUCKET).uploadToSignedUrl(path, token, file, { contentType });
   if (error) {
     throw error;

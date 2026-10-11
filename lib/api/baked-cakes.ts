@@ -98,6 +98,18 @@ export async function requestUploadUrl(input: { purpose: UploadPurpose; fileKind
 // backend never needs to understand HEIC at all. Returns the uploaded
 // object's Storage path, ready to pass as mediaPath/thumbnailPath.
 export async function uploadCakeFile(file: File, purpose: UploadPurpose, fileKind: MediaType): Promise<string> {
+  // Read here (statically-bundled module) rather than inside the
+  // dynamically-imported direct-upload module — Next.js's build-time
+  // inlining of NEXT_PUBLIC_* vars does not reliably reach code that's
+  // only ever loaded via import(), which silently broke every upload in
+  // production (the reference survived as a runtime process.env lookup
+  // that doesn't exist in the browser, instead of the actual value).
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  }
+
   const prepared = fileKind === "image" ? await convertHeicIfNeeded(file) : file;
   const { path, token } = await requestUploadUrl({ purpose, fileKind, contentType: prepared.type });
   // Dynamic import so @supabase/supabase-js is only ever pulled into the
@@ -105,7 +117,7 @@ export async function uploadCakeFile(file: File, purpose: UploadPurpose, fileKin
   // which also imports this module for getPublicBakedCakes) never
   // trigger this code path and shouldn't pay for its bundle size.
   const { uploadToSignedPath } = await import("../supabase/direct-upload");
-  await uploadToSignedPath(path, token, prepared, prepared.type);
+  await uploadToSignedPath(supabaseUrl, supabaseAnonKey, path, token, prepared, prepared.type);
   return path;
 }
 
