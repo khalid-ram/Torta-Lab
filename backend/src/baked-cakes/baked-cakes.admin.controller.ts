@@ -1,6 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { BakedCakesService } from './baked-cakes.service';
@@ -8,22 +6,14 @@ import { ListBakedCakesQueryDto } from './dto/list-baked-cakes-query.dto';
 import { CreateBakedCakeDto } from './dto/create-baked-cake.dto';
 import { UpdateBakedCakeDto } from './dto/update-baked-cake.dto';
 import { UpdateBakedCakeStatusDto } from './dto/update-baked-cake-status.dto';
+import { RequestUploadUrlDto } from './dto/request-upload-url.dto';
 
-// Files are buffered in memory (never written to local disk) and relayed
-// straight to Supabase Storage. The 50MB cap matches the video limit;
-// the stricter 10MB image limit is enforced in the service after the
-// file arrives, since multer applies one size limit across both fields.
-const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024;
-const mediaFileInterceptor = FileFieldsInterceptor(
-  [
-    { name: 'media', maxCount: 1 },
-    { name: 'thumbnail', maxCount: 1 },
-  ],
-  { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_SIZE_BYTES } },
-);
-
-type UploadedMediaFiles = { media?: Express.Multer.File[]; thumbnail?: Express.Multer.File[] };
-
+// Media no longer travels through this controller at all — the browser
+// uploads straight to Supabase Storage using a signed URL minted by
+// POST /uploads below, then create/update receive the resulting path as
+// plain JSON. See baked-cakes.service.ts for why (a platform request-body
+// limit this endpoint's old multipart upload would otherwise hit) and
+// how the uploaded object is still verified before use.
 @UseGuards(AuthGuard, AdminGuard)
 @Controller('admin/baked-cakes')
 export class BakedCakesAdminController {
@@ -40,21 +30,20 @@ export class BakedCakesAdminController {
     return { cake };
   }
 
+  @Post('uploads')
+  requestUploadUrl(@Body() dto: RequestUploadUrlDto) {
+    return this.bakedCakesService.requestUploadUrl(dto);
+  }
+
   @Post()
-  @UseInterceptors(mediaFileInterceptor)
-  async create(@Body() dto: CreateBakedCakeDto, @UploadedFiles() files: UploadedMediaFiles) {
-    const cake = await this.bakedCakesService.create(dto, files.media?.[0], files.thumbnail?.[0]);
+  async create(@Body() dto: CreateBakedCakeDto) {
+    const cake = await this.bakedCakesService.create(dto);
     return { cake };
   }
 
   @Patch(':id')
-  @UseInterceptors(mediaFileInterceptor)
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateBakedCakeDto,
-    @UploadedFiles() files: UploadedMediaFiles,
-  ) {
-    const cake = await this.bakedCakesService.update(id, dto, files.media?.[0], files.thumbnail?.[0]);
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBakedCakeDto) {
+    const cake = await this.bakedCakesService.update(id, dto);
     return { cake };
   }
 

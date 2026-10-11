@@ -152,6 +152,8 @@ export const adminT: Record<Lang, {
     fieldActualPrice: string;
     actualPriceHelp: string;
     notSet: string;
+    uploading: string;
+    heicConversionFailed: string;
   };
   customization: {
     title: string;
@@ -389,6 +391,8 @@ export const adminT: Record<Lang, {
       fieldActualPrice: "Actual Selling Price",
       actualPriceHelp: "What this specific cake was actually sold for. Enter 0 if the cake was given for free. Leave empty if no actual selling price is recorded.",
       notSet: "—",
+      uploading: "Uploading...",
+      heicConversionFailed: "This HEIC photo could not be converted. Please choose another photo, or export it as JPEG or PNG first.",
     },
     customization: {
       title: "Customization",
@@ -625,6 +629,8 @@ export const adminT: Record<Lang, {
       fieldActualPrice: "سعر البيع الفعلي",
       actualPriceHelp: "السعر الذي بيعت به هذه التورتة فعليًا. اكتب 0 إذا تم تقديم التورتة مجانًا، واترك الحقل فارغًا إذا لم يتم تسجيل سعر البيع الفعلي.",
       notSet: "—",
+      uploading: "جارٍ الرفع...",
+      heicConversionFailed: "تعذّر تحويل صورة HEIC هذه. يرجى اختيار صورة أخرى، أو تصديرها بصيغة JPEG أو PNG أولاً.",
     },
     customization: {
       title: "التخصيص",

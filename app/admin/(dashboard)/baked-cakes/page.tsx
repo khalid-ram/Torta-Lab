@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import * as api from "@/lib/api/baked-cakes";
 import { OCCASION_VALUES, occasionLabel, type Occasion } from "@/lib/occasions";
+import { HeicConversionError } from "@/lib/heic";
 import { useAdminUi } from "../admin-context";
 import { adminT } from "../translations";
 
@@ -511,6 +512,7 @@ function BakedCakeFormModal({
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -553,14 +555,35 @@ function BakedCakeFormModal({
     setSaving(true);
     setError("");
     try {
+      // Each file is converted (if HEIC) and uploaded straight to
+      // Storage first — the create/update call below only ever carries
+      // the resulting path, never raw file bytes. See lib/api/baked-cakes.ts.
+      setUploading(true);
+      let mediaPath: string | undefined;
+      let thumbnailPath: string | undefined;
+      try {
+        if (mediaFile) {
+          mediaPath = await api.uploadCakeFile(mediaFile, "media", form.media_type);
+        }
+        if (thumbnailFile) {
+          thumbnailPath = await api.uploadCakeFile(thumbnailFile, "thumbnail", "image");
+        }
+      } finally {
+        setUploading(false);
+      }
+
       if (isCreate) {
-        await api.createBakedCake({ ...form, media: mediaFile ?? undefined, thumbnail: thumbnailFile ?? undefined });
+        await api.createBakedCake({ ...form, mediaPath: mediaPath as string, thumbnailPath });
       } else {
-        await api.updateBakedCake(cake!.id, { ...form, media: mediaFile ?? undefined, thumbnail: thumbnailFile ?? undefined });
+        await api.updateBakedCake(cake!.id, { ...form, mediaPath, thumbnailPath });
       }
       onSaved();
     } catch (err) {
-      setError(err instanceof api.BakedCakesApiError ? err.message : t.errorGeneric);
+      if (err instanceof HeicConversionError) {
+        setError(t.heicConversionFailed);
+      } else {
+        setError(err instanceof api.BakedCakesApiError ? err.message : t.errorGeneric);
+      }
     } finally {
       setSaving(false);
     }
@@ -772,7 +795,7 @@ function BakedCakeFormModal({
               {t.cancel}
             </button>
             <button type="submit" disabled={saving} className="flex-1 bg-[#D96C7C] hover:bg-[#C55769] text-white rounded-full py-2.5 font-semibold text-sm transition disabled:opacity-60">
-              {saving ? t.saving : t.save}
+              {uploading ? t.uploading : saving ? t.saving : t.save}
             </button>
           </div>
         </form>

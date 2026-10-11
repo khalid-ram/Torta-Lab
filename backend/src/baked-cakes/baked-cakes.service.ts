@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
-import heicConvert from 'heic-convert';
 import { SupabaseService } from '../supabase/supabase.service';
 import { escapeIlikeTerm } from '../common/utils/postgrest-search';
-import { generateStoragePath } from '../common/utils/generate-storage-path';
+import { generateStoragePath, type StorageFolder } from '../common/utils/generate-storage-path';
+import { ALLOWED_IMAGE_MIME_TYPES, ALLOWED_VIDEO_MIME_TYPES, IMAGE_SIGNATURES, MAX_IMAGE_SIZE_BYTES, MAX_VIDEO_SIZE_BYTES } from './upload-constraints';
 import { ListBakedCakesQueryDto } from './dto/list-baked-cakes-query.dto';
 import { CreateBakedCakeDto } from './dto/create-baked-cake.dto';
 import { UpdateBakedCakeDto } from './dto/update-baked-cake.dto';
+import { RequestUploadUrlDto } from './dto/request-upload-url.dto';
 import type { Occasion } from './occasions';
 
 export type MediaType = 'image' | 'video';
@@ -58,40 +59,7 @@ export interface Pagination {
 const BUCKET = 'baked-cakes';
 const COLUMNS =
   'id, name, description, is_available_to_order, status, media_type, media_url, media_path, thumbnail_url, thumbnail_path, occasion, cost, recommended_selling_price, actual_selling_price, created_at, updated_at';
-
-const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'];
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 const PUBLIC_LIMIT = 24;
-
-// Safari/iOS can report an HEIC photo's mimetype as image/png or
-// image/jpeg (the file's real bytes stay HEIC-encoded) — that passes a
-// mimetype-only check but produces a file no non-Apple browser, and not
-// even Next.js's own image optimizer, can actually decode. normalizeImage
-// below checks the real magic bytes and transparently converts an HEIC
-// upload to JPEG server-side, so admins can upload straight from an
-// iPhone without a broken thumbnail or an extra manual export step.
-const IMAGE_SIGNATURES: Record<string, (buf: Buffer) => boolean> = {
-  'image/jpeg': (buf) => buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff,
-  'image/png': (buf) =>
-    buf.length >= 8 &&
-    buf[0] === 0x89 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x4e &&
-    buf[3] === 0x47 &&
-    buf[4] === 0x0d &&
-    buf[5] === 0x0a &&
-    buf[6] === 0x1a &&
-    buf[7] === 0x0a,
-  'image/webp': (buf) => buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP',
-};
-
-const HEIC_BRANDS = ['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1'];
-function isHeicFile(buf: Buffer): boolean {
-  if (buf.length < 12 || buf.toString('ascii', 4, 8) !== 'ftyp') return false;
-  return HEIC_BRANDS.includes(buf.toString('ascii', 8, 12));
-}
 
 @Injectable()
 export class BakedCakesService {
@@ -173,41 +141,51 @@ export class BakedCakesService {
     }));
   }
 
-  async create(
-    dto: CreateBakedCakeDto,
-    mediaFile: Express.Multer.File | undefined,
-    thumbnailFile: Express.Multer.File | undefined,
-  ): Promise<BakedCakeRecord> {
-    const uploadedPaths: string[] = [];
+  // Step 1 of the direct-upload flow: mint a short-lived (2h), one-time
+  // signed Storage upload URL for a server-generated path. The browser
+  // then uploads the file bytes straight to Supabase Storage — they
+  // never pass through this backend, which is what keeps large video
+  // uploads working on a platform with a small request-body limit.
+  // Nothing is trusted from this request beyond "which folder" — the
+  // actual file is re-validated from Storage in validateUploadedObject
+  // before it's ever attached to a database row.
+  async requestUploadUrl(dto: RequestUploadUrlDto): Promise<{ path: string; token: string }> {
+    if (dto.purpose === 'thumbnail' && dto.fileKind !== 'image') {
+      throw new BadRequestException('A thumbnail must be an image.');
+    }
+    if (dto.fileKind === 'image' && !(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(dto.contentType)) {
+      throw new BadRequestException('Unsupported image type. Allowed: JPEG, PNG, WEBP.');
+    }
+    if (dto.fileKind === 'video' && !(ALLOWED_VIDEO_MIME_TYPES as readonly string[]).includes(dto.contentType)) {
+      throw new BadRequestException('Unsupported video type. Allowed: MP4, WEBM.');
+    }
+
+    const folder: StorageFolder = dto.purpose === 'thumbnail' ? 'thumbnails' : dto.fileKind === 'image' ? 'images' : 'videos';
+    // Always a fresh randomUUID-based path (see generateStoragePath) —
+    // an upload slot can never collide with or overwrite an existing object.
+    const path = generateStoragePath(folder, dto.contentType);
+
+    const client = this.supabaseService.getClient();
+    const { data, error } = await client.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (error || !data) {
+      this.logger.error(`Failed to create signed upload URL for ${path}: ${error?.message}`);
+      throw new InternalServerErrorException('Unable to prepare upload.');
+    }
+    return { path: data.path, token: data.token };
+  }
+
+  async create(dto: CreateBakedCakeDto): Promise<BakedCakeRecord> {
+    const uploadedPaths = [dto.mediaPath, ...(dto.thumbnailPath ? [dto.thumbnailPath] : [])];
     try {
-      let mediaPath: string;
-      let mediaUrl: string;
-      let thumbnailPath: string | null = null;
+      await this.validateUploadedObject(dto.mediaPath, dto.media_type);
+
       let thumbnailUrl: string | null = null;
-
-      if (dto.media_type === 'image') {
-        if (!mediaFile) throw new BadRequestException('A photo is required.');
-        await this.normalizeImage(mediaFile);
-        mediaPath = generateStoragePath('images', mediaFile.mimetype);
-        await this.uploadFile(mediaPath, mediaFile);
-        uploadedPaths.push(mediaPath);
-        mediaUrl = this.getPublicUrl(mediaPath);
-      } else {
-        if (!mediaFile) throw new BadRequestException('A video is required.');
-        if (!thumbnailFile) throw new BadRequestException('A thumbnail is required for video cakes.');
-        this.validateVideo(mediaFile);
-        await this.normalizeImage(thumbnailFile);
-
-        mediaPath = generateStoragePath('videos', mediaFile.mimetype);
-        await this.uploadFile(mediaPath, mediaFile);
-        uploadedPaths.push(mediaPath);
-        mediaUrl = this.getPublicUrl(mediaPath);
-
-        thumbnailPath = generateStoragePath('thumbnails', thumbnailFile.mimetype);
-        await this.uploadFile(thumbnailPath, thumbnailFile);
-        uploadedPaths.push(thumbnailPath);
-        thumbnailUrl = this.getPublicUrl(thumbnailPath);
+      if (dto.media_type === 'video') {
+        if (!dto.thumbnailPath) throw new BadRequestException('A thumbnail is required for video cakes.');
+        await this.validateUploadedObject(dto.thumbnailPath, 'image');
+        thumbnailUrl = this.getPublicUrl(dto.thumbnailPath);
       }
+      const mediaUrl = this.getPublicUrl(dto.mediaPath);
 
       const client = this.supabaseService.getClient();
       const { data, error } = await client
@@ -219,9 +197,9 @@ export class BakedCakesService {
           status: dto.status,
           media_type: dto.media_type,
           media_url: mediaUrl,
-          media_path: mediaPath,
+          media_path: dto.mediaPath,
           thumbnail_url: thumbnailUrl,
-          thumbnail_path: thumbnailPath,
+          thumbnail_path: dto.media_type === 'video' ? (dto.thumbnailPath as string) : null,
           // ?? only falls back on undefined/null, so an explicit 0 (e.g.
           // "given away for free") is preserved and never coerced to null.
           occasion: dto.occasion ?? null,
@@ -238,20 +216,19 @@ export class BakedCakesService {
       }
       return data as BakedCakeRecord;
     } catch (err) {
+      // Covers both an invalid upload (already removed by
+      // validateUploadedObject — a harmless repeat delete) and a valid
+      // upload that never made it into a row because something later
+      // failed: either way, nothing uploaded-but-unattached is left behind.
       await this.deleteFiles(uploadedPaths);
       throw err;
     }
   }
 
-  async update(
-    id: string,
-    dto: UpdateBakedCakeDto,
-    mediaFile: Express.Multer.File | undefined,
-    thumbnailFile: Express.Multer.File | undefined,
-  ): Promise<BakedCakeRecord> {
+  async update(id: string, dto: UpdateBakedCakeDto): Promise<BakedCakeRecord> {
     const existing = await this.findOne(id);
     const targetMediaType = dto.media_type ?? existing.media_type;
-    const uploadedPaths: string[] = [];
+    const newlyUploadedPaths = [...(dto.mediaPath ? [dto.mediaPath] : []), ...(dto.thumbnailPath ? [dto.thumbnailPath] : [])];
 
     try {
       const update: Record<string, unknown> = {};
@@ -272,11 +249,9 @@ export class BakedCakesService {
       let newThumbnailPath: string | null = null;
 
       if (targetMediaType === 'image') {
-        if (mediaFile) {
-          await this.normalizeImage(mediaFile);
-          newMediaPath = generateStoragePath('images', mediaFile.mimetype);
-          await this.uploadFile(newMediaPath, mediaFile);
-          uploadedPaths.push(newMediaPath);
+        if (dto.mediaPath) {
+          await this.validateUploadedObject(dto.mediaPath, 'image');
+          newMediaPath = dto.mediaPath;
           update.media_path = newMediaPath;
           update.media_url = this.getPublicUrl(newMediaPath);
         } else if (existing.media_type !== 'image') {
@@ -289,22 +264,18 @@ export class BakedCakesService {
         }
       } else {
         const switchingToVideo = existing.media_type !== 'video';
-        if (switchingToVideo && !mediaFile) throw new BadRequestException('A video is required when switching to Video.');
-        if (switchingToVideo && !thumbnailFile) throw new BadRequestException('A thumbnail is required when switching to Video.');
+        if (switchingToVideo && !dto.mediaPath) throw new BadRequestException('A video is required when switching to Video.');
+        if (switchingToVideo && !dto.thumbnailPath) throw new BadRequestException('A thumbnail is required when switching to Video.');
 
-        if (mediaFile) {
-          this.validateVideo(mediaFile);
-          newMediaPath = generateStoragePath('videos', mediaFile.mimetype);
-          await this.uploadFile(newMediaPath, mediaFile);
-          uploadedPaths.push(newMediaPath);
+        if (dto.mediaPath) {
+          await this.validateUploadedObject(dto.mediaPath, 'video');
+          newMediaPath = dto.mediaPath;
           update.media_path = newMediaPath;
           update.media_url = this.getPublicUrl(newMediaPath);
         }
-        if (thumbnailFile) {
-          await this.normalizeImage(thumbnailFile);
-          newThumbnailPath = generateStoragePath('thumbnails', thumbnailFile.mimetype);
-          await this.uploadFile(newThumbnailPath, thumbnailFile);
-          uploadedPaths.push(newThumbnailPath);
+        if (dto.thumbnailPath) {
+          await this.validateUploadedObject(dto.thumbnailPath, 'image');
+          newThumbnailPath = dto.thumbnailPath;
           update.thumbnail_path = newThumbnailPath;
           update.thumbnail_url = this.getPublicUrl(newThumbnailPath);
         }
@@ -336,7 +307,7 @@ export class BakedCakesService {
 
       return data as BakedCakeRecord;
     } catch (err) {
-      await this.deleteFiles(uploadedPaths);
+      await this.deleteFiles(newlyUploadedPaths);
       throw err;
     }
   }
@@ -354,53 +325,60 @@ export class BakedCakesService {
     return data as BakedCakeRecord;
   }
 
-  // Detects an HEIC upload by its real bytes (regardless of what mimetype
-  // the browser reported) and transparently converts it to JPEG in place
-  // before the usual checks run, so the stored file is always something
-  // every browser can actually display.
-  private async normalizeImage(file: Express.Multer.File): Promise<void> {
-    if (isHeicFile(file.buffer)) {
-      let converted: Uint8Array;
-      try {
-        converted = await heicConvert({ buffer: file.buffer, format: 'JPEG', quality: 0.9 });
-      } catch (err) {
-        this.logger.error(`Failed to convert HEIC image: ${err instanceof Error ? err.message : String(err)}`);
-        throw new BadRequestException('This photo could not be converted. Please export it as JPEG or PNG and try again.');
-      }
-      file.buffer = Buffer.from(converted);
-      file.mimetype = 'image/jpeg';
-      file.size = file.buffer.length;
+  // Step 2 of the direct-upload flow: re-derives trust from scratch.
+  // Nothing about the object's existence, size, or real type is taken
+  // on the client's word — this reads the object Storage actually
+  // received and either accepts it or deletes it. Covers "upload never
+  // happened" (expired/unused signed URL, interrupted transfer) and "a
+  // real object exists but isn't what it claims to be" (oversized,
+  // wrong type, or — for images — bytes that don't match their declared
+  // Content-Type, the same magic-byte check that exists because a HEIC
+  // photo can otherwise be uploaded claiming to be image/jpeg).
+  private async validateUploadedObject(path: string, kind: 'image' | 'video'): Promise<void> {
+    const client = this.supabaseService.getClient();
+
+    // info() fetches this exact object's real, server-recorded metadata
+    // (size, content type) directly — it errors when nothing was ever
+    // uploaded to this path, which covers both an expired signed URL
+    // and an interrupted/abandoned upload in one check.
+    const { data: object, error: infoError } = await client.storage.from(BUCKET).info(path);
+    if (infoError || !object) {
+      throw new BadRequestException('Upload not found or expired. Please try uploading again.');
     }
 
-    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException('Unsupported image type. Allowed: JPEG, PNG, WEBP.');
+    const size = object.size ?? 0;
+    const reportedMimeType = object.contentType ?? '';
+
+    if (kind === 'video') {
+      if (size > MAX_VIDEO_SIZE_BYTES) {
+        await this.deleteFiles([path]);
+        throw new BadRequestException('Video exceeds the 50MB limit.');
+      }
+      if (!(ALLOWED_VIDEO_MIME_TYPES as readonly string[]).includes(reportedMimeType)) {
+        await this.deleteFiles([path]);
+        throw new BadRequestException('Unsupported video type. Allowed: MP4, WEBM.');
+      }
+      return;
     }
-    if (!IMAGE_SIGNATURES[file.mimetype]?.(file.buffer)) {
-      throw new BadRequestException('The uploaded file does not look like a valid JPEG, PNG, or WEBP image.');
-    }
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+
+    if (size > MAX_IMAGE_SIZE_BYTES) {
+      await this.deleteFiles([path]);
       throw new BadRequestException('Image exceeds the 10MB limit.');
     }
-  }
-
-  private validateVideo(file: Express.Multer.File): void {
-    if (!ALLOWED_VIDEO_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException('Unsupported video type. Allowed: MP4, WEBM.');
+    if (!(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(reportedMimeType)) {
+      await this.deleteFiles([path]);
+      throw new BadRequestException('Unsupported image type. Allowed: JPEG, PNG, WEBP.');
     }
-    if (file.size > MAX_VIDEO_SIZE_BYTES) {
-      throw new BadRequestException('Video exceeds the 50MB limit.');
-    }
-  }
 
-  private async uploadFile(path: string, file: Express.Multer.File): Promise<void> {
-    const client = this.supabaseService.getClient();
-    const { error } = await client.storage.from(BUCKET).upload(path, file.buffer, {
-      contentType: file.mimetype,
-      upsert: false,
-    });
-    if (error) {
-      this.logger.error(`Failed to upload ${path}: ${error.message}`);
-      throw new InternalServerErrorException('Unable to upload media.');
+    const { data: blob, error: downloadError } = await client.storage.from(BUCKET).download(path);
+    if (downloadError || !blob) {
+      this.logger.error(`Failed to download uploaded object ${path} for validation: ${downloadError?.message}`);
+      throw new InternalServerErrorException('Unable to verify the uploaded file.');
+    }
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    if (!IMAGE_SIGNATURES[reportedMimeType]?.(buffer)) {
+      await this.deleteFiles([path]);
+      throw new BadRequestException('The uploaded file does not look like a valid JPEG, PNG, or WEBP image.');
     }
   }
 

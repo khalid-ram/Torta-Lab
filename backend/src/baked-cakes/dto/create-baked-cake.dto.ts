@@ -4,9 +4,6 @@ import { OCCASION_VALUES, type Occasion } from '../occasions';
 import { toNullableMoney } from './nullable-money';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
-// multipart/form-data always arrives as strings; coerce the boolean text
-// NestJS gets from the form field into a real boolean before validation.
-const toBoolean = ({ value }: { value: unknown }) => (value === undefined ? undefined : value === true || value === 'true');
 const toOptionalTrimmed = ({ value }: { value: unknown }) => {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
@@ -24,7 +21,6 @@ export class CreateBakedCakeDto {
   @Length(2, 2000)
   description!: string;
 
-  @Transform(toBoolean)
   @IsBoolean()
   is_available_to_order!: boolean;
 
@@ -33,6 +29,21 @@ export class CreateBakedCakeDto {
 
   @IsIn(['image', 'video'])
   media_type!: 'image' | 'video';
+
+  // The media was already uploaded straight to Storage via a signed
+  // upload URL (see requestUploadUrl) before this request is sent — this
+  // is just the path, re-validated server-side in baked-cakes.service.ts
+  // before anything is written to the database.
+  @IsString()
+  @Length(1, 500)
+  mediaPath!: string;
+
+  // Required only when media_type is 'video' — enforced in the service,
+  // not here, since the rule depends on another field.
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  thumbnailPath?: string;
 
   // Optional: an empty/omitted occasion simply means no badge shows
   // publicly, it is not an error.

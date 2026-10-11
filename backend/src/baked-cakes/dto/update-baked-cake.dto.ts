@@ -4,7 +4,6 @@ import { OCCASION_VALUES, type Occasion } from '../occasions';
 import { toNullableMoney } from './nullable-money';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
-const toBoolean = ({ value }: { value: unknown }) => (value === undefined ? undefined : value === true || value === 'true');
 // Distinct from create's toOptionalTrimmed: here an empty string means
 // "the admin cleared the Occasion field", which must still reach the
 // service as a real value (null) rather than vanish as undefined —
@@ -17,9 +16,10 @@ const toOptionalOccasion = ({ value }: { value: unknown }) => {
   return trimmed === '' ? null : trimmed;
 };
 
-// All fields optional: an edit only sends what actually changed. Media
-// files (if any) travel alongside this as multipart fields, handled by
-// the controller/service, not validated here.
+// All fields optional: an edit only sends what actually changed. A new
+// mediaPath/thumbnailPath (if present) points at a file already
+// uploaded straight to Storage via a signed upload URL — re-validated
+// in the service before replacing anything.
 export class UpdateBakedCakeDto {
   @IsOptional()
   @Transform(trim)
@@ -34,7 +34,6 @@ export class UpdateBakedCakeDto {
   description?: string;
 
   @IsOptional()
-  @Transform(toBoolean)
   @IsBoolean()
   is_available_to_order?: boolean;
 
@@ -45,6 +44,16 @@ export class UpdateBakedCakeDto {
   @IsOptional()
   @IsIn(['image', 'video'])
   media_type?: 'image' | 'video';
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  mediaPath?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  thumbnailPath?: string;
 
   @IsOptional()
   @Transform(toOptionalOccasion)
