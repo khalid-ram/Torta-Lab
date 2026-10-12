@@ -10,6 +10,7 @@ import { PublicNavbar } from "./navbar";
 import { SOCIAL_LINKS } from "./social-links";
 import { PUBLIC_CONTAINER_CLASS } from "./container";
 import { VideoFeed } from "./video-feed";
+import { BudgetBanner } from "./budget-banner";
 
 type Lang = "en" | "ar";
 
@@ -226,6 +227,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <BudgetBanner lang={lang} />
 
       <section className="max-w-6xl mx-auto px-6 py-6 md:py-8">
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#F7F4F1] to-[#F0ECE7] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">

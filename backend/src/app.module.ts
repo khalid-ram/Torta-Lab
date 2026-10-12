@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { BakedCakesModule } from './baked-cakes/baked-cakes.module';
 import { CustomizationModule } from './customization/customization.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { BudgetLeadsModule } from './budget-leads/budget-leads.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     BakedCakesModule,
     CustomizationModule,
     AnalyticsModule,
+    BudgetLeadsModule,
   ],
   controllers: [HealthController],
 })
