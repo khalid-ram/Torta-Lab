@@ -26,11 +26,13 @@ export interface Recommendation {
 }
 
 export interface SubmitBudgetLeadInput {
-  name: string;
-  phone: string;
+  // Omitted entirely for a logged-in submission — the backend resolves
+  // name/phone from the session instead and ignores these fields.
+  name?: string;
+  phone?: string;
   budgetEgp: number;
   idempotencyKey: string;
-  privacyAcknowledged: boolean;
+  privacyAcknowledged?: boolean;
 }
 
 export async function submitBudgetLead(input: SubmitBudgetLeadInput): Promise<{ leadId: string; recommendations: Recommendation[] }> {

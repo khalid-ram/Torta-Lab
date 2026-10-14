@@ -13,6 +13,11 @@ interface AuthContextValue {
   signup: (input: { name: string; username: string; phone: string; password: string }) => Promise<authApi.AuthUser>;
   login: (input: { username: string; password: string }) => Promise<authApi.AuthUser>;
   logout: () => Promise<void>;
+  // Re-reads /auth/me and updates state — for flows where a session
+  // cookie gets set as a side effect of some other request (e.g. the
+  // budget-leads form silently signing up a new visitor) rather than
+  // through signup()/login() themselves.
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -48,7 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "logged-out" });
   }, []);
 
-  return <AuthContext.Provider value={{ state, signup, login, logout }}>{children}</AuthContext.Provider>;
+  const refresh = useCallback(async () => {
+    const user = await authApi.getCurrentUser();
+    setState(user ? { status: "logged-in", user } : { status: "logged-out" });
+  }, []);
+
+  return <AuthContext.Provider value={{ state, signup, login, logout, refresh }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

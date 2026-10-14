@@ -38,11 +38,6 @@ const T = {
         { title: "Worth the Quality", body: "Great quality at a fair price." },
       ],
     },
-    videoBanner: {
-      title: "Watch Your Cake Come to Life",
-      body: "Design your cake your way, and request a video capturing how it was made from the first step to the final touch.",
-      cta: "Customize Yours",
-    },
     about: { title: "About Us", body: "We're a small custom-cake studio that believes every celebration deserves something made just for it. Every cake is baked fresh, to order, with ingredients we trust." },
     whatsappFloat: "WhatsApp Now",
     footer: {
@@ -80,11 +75,6 @@ const T = {
         { title: "طبيعية وفريش", body: "مكونات فريش وطبيعية، بدون ألوان ضارة أو إضافات صناعية." },
         { title: "جودة تستاهل", body: "خامات بجودة عالية وسعر مناسب من غير ما نضحي بالطعم." },
       ],
-    },
-    videoBanner: {
-      title: "شوف تورتتك وهي بتتعمل",
-      body: "صمّم تورتتك بطريقتك، واطلب فيديو يوثّق مراحل تحضيرها من أول خطوة لحد اللمسة الأخيرة.",
-      cta: "صمّم تورتتك",
     },
     about: { title: "من نحن", body: "إحنا استوديو تورت مخصص بنؤمن إن كل مناسبة تستحق حاجة معمولة مخصوص ليها. كل تورتة بتتعمل فريش عند الطلب، بمكونات بنثق فيها." },
     whatsappFloat: "واتساب الان",
@@ -229,19 +219,6 @@ export default function Home() {
       </section>
 
       <BudgetBanner lang={lang} />
-
-      <section className="max-w-6xl mx-auto px-6 py-6 md:py-8">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#F7F4F1] to-[#F0ECE7] px-8 py-12 sm:px-12 sm:py-14 md:px-16 md:py-16 flex flex-col md:flex-row items-center gap-10 md:gap-16">
-          <div className="flex-1 text-center md:text-start">
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C] leading-snug">{t.videoBanner.title}</h2>
-            <p className="mt-4 text-[#633B2C] leading-relaxed max-w-md mx-auto md:mx-0">{t.videoBanner.body}</p>
-            <Link href="/customize?new=1" className="inline-block mt-6 bg-[#D96C7C] hover:bg-[#C55769] text-white px-7 py-3 rounded-full font-semibold transition">
-              {t.videoBanner.cta}
-            </Link>
-          </div>
-          <MakingOfIllustration />
-        </div>
-      </section>
 
       <section id="cakes" className={`group relative py-10 md:py-12 ${PUBLIC_CONTAINER_CLASS}`}>
         <h2 className="text-3xl font-serif font-bold text-center">{t.cakes.title}</h2>
@@ -473,25 +450,4 @@ function RibbonIcon() {
 }
 
 const WHY_US_ICONS = [<WhiskIcon key="whisk" />, <LeafIcon key="leaf" />, <RibbonIcon key="ribbon" />];
-
-function MakingOfIllustration() {
-  return (
-    <div className="relative shrink-0 w-40 h-40 sm:w-48 sm:h-48 flex items-end justify-center">
-      <span className="absolute top-0 start-0 w-6 h-6 border-t-2 border-s-2 border-[#79665E]/45 rounded-tl-lg" />
-      <span className="absolute top-0 end-0 w-6 h-6 border-t-2 border-e-2 border-[#79665E]/45 rounded-tr-lg" />
-      <span className="absolute bottom-0 start-0 w-6 h-6 border-b-2 border-s-2 border-[#79665E]/45 rounded-bl-lg" />
-      <span className="absolute bottom-0 end-0 w-6 h-6 border-b-2 border-e-2 border-[#79665E]/45 rounded-br-lg" />
-
-      <span className="absolute top-3 end-3 flex items-center gap-1.5 bg-black/30 rounded-full px-2 py-1">
-        <span className="w-2 h-2 rounded-full bg-[#E8574A] motion-safe:animate-pulse" />
-        <span className="text-[10px] font-semibold text-white/90">REC</span>
-      </span>
-
-      <div className="relative flex flex-col items-center pb-4">
-        <div className="w-16 h-10 rounded-xl bg-gradient-to-b from-[#F3C7CC] to-[#D96C7C]" />
-        <div className="w-24 h-12 rounded-xl bg-gradient-to-b from-[#E9C99A] to-[#D9A86C] -mt-1" />
-      </div>
-    </div>
-  );
-}
 

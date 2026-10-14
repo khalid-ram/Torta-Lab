@@ -10,6 +10,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import * as api from "@/lib/api/budget-leads";
+import { useAuth } from "@/lib/auth/auth-context";
 
 type Lang = "en" | "ar";
 type Stage = "closed" | "form" | "results";
@@ -26,6 +27,7 @@ const T: Record<
     customLabel: string;
     customPlaceholder: string;
     cta: string;
+    newBadge: string;
     formTitle: string;
     nameLabel: string;
     namePlaceholder: string;
@@ -65,6 +67,7 @@ const T: Record<
     customLabel: "Custom amount",
     customPlaceholder: "e.g. 650",
     cta: "Find My Cake",
+    newBadge: "✨ New",
     formTitle: "Almost there",
     nameLabel: "Full name",
     namePlaceholder: "Your name",
@@ -103,6 +106,7 @@ const T: Record<
     customLabel: "مبلغ آخر",
     customPlaceholder: "مثلاً 650",
     cta: "وريني التورت اللي تناسبني",
+    newBadge: "✨ جديد",
     formTitle: "خطوة أخيرة",
     nameLabel: "الاسم بالكامل",
     namePlaceholder: "اسمك",
@@ -165,11 +169,41 @@ export function BudgetBanner({ lang }: { lang: Lang }) {
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<api.Recommendation[]>([]);
 
+  const { state: authState, refresh } = useAuth();
+  const isLoggedIn = authState.status === "logged-in";
+
+  const submitLead = async (amount: number, key: string) => {
+    setSubmitting(true);
+    setFormError("");
+    try {
+      const result = await api.submitBudgetLead({
+        budgetEgp: amount,
+        idempotencyKey: key,
+        ...(isLoggedIn ? {} : { name: name.trim(), phone: phone.trim(), privacyAcknowledged: true }),
+      });
+      setRecommendations(result.recommendations);
+      setStage("results");
+      if (!isLoggedIn) void refresh(); // picks up a session if one was just created
+    } catch (err) {
+      setFormError(err instanceof api.BudgetLeadsApiError ? err.message : t.errorGeneric);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const openForm = (selected: number) => {
     setBudget(selected);
     setBudgetError("");
     setFormError("");
-    setIdempotencyKey(crypto.randomUUID());
+    const key = crypto.randomUUID();
+    setIdempotencyKey(key);
+
+    // Already recognized — nothing left to ask, go straight to results.
+    if (isLoggedIn) {
+      setStage("results");
+      void submitLead(selected, key);
+      return;
+    }
     setStage("form");
   };
 
@@ -204,46 +238,32 @@ export function BudgetBanner({ lang }: { lang: Lang }) {
       return;
     }
     if (!budget || !idempotencyKey) return;
-
-    setSubmitting(true);
-    setFormError("");
-    try {
-      const result = await api.submitBudgetLead({
-        name: name.trim(),
-        phone: phone.trim(),
-        budgetEgp: budget,
-        idempotencyKey,
-        privacyAcknowledged: true,
-      });
-      setRecommendations(result.recommendations);
-      setStage("results");
-    } catch (err) {
-      setFormError(err instanceof api.BudgetLeadsApiError ? err.message : t.errorGeneric);
-    } finally {
-      setSubmitting(false);
-    }
+    await submitLead(budget, idempotencyKey);
   };
 
   return (
-    <section className="py-10 md:py-12 px-6">
-      <div className="max-w-3xl mx-auto rounded-[2rem] bg-gradient-to-br from-[#FBEAE4] to-[#F7D9D0] px-6 py-10 sm:px-10 sm:py-12 text-center shadow-[0_8px_30px_rgba(217,108,124,0.12)]">
-        <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#33221C]">{t.title}</h2>
+    <section className="py-10 md:py-14 px-6">
+      <div className="max-w-3xl mx-auto rounded-[2rem] bg-gradient-to-br from-[#FBEAE4] to-[#F7D9D0] px-6 py-10 sm:px-10 sm:py-14 text-center shadow-[0_12px_40px_rgba(217,108,124,0.2)] ring-1 ring-[#D96C7C]/20">
+        <span className="inline-block bg-[#D96C7C] text-white text-xs font-bold tracking-wide rounded-full px-3 py-1">
+          {t.newBadge}
+        </span>
+        <h2 className="mt-3 text-3xl sm:text-4xl font-serif font-bold text-[#33221C]">{t.title}</h2>
         <p className="mt-3 text-[#633B2C] max-w-md mx-auto">{t.subtitle}</p>
 
-        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
           {PRESET_BUDGETS.map((amount) => (
             <button
               key={amount}
               type="button"
               onClick={() => handlePresetClick(amount)}
-              className="bg-white hover:bg-[#FFFCF8] border border-[#E8D8CC] text-[#633B2C] rounded-full px-4 py-2 font-semibold text-sm transition"
+              className="bg-[#D96C7C] hover:bg-[#C55769] hover:scale-105 motion-reduce:hover:scale-100 text-white rounded-full px-5 py-2.5 font-bold text-sm sm:text-base shadow-[0_4px_14px_rgba(217,108,124,0.35)] transition"
             >
               {amount} {t.egp}
             </button>
           ))}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
           <label className="text-sm text-[#79665E]">{t.customLabel}</label>
           <input
             type="number"
@@ -257,7 +277,7 @@ export function BudgetBanner({ lang }: { lang: Lang }) {
           <button
             type="button"
             onClick={handleCustomSubmit}
-            className="border border-[#D96C7C] text-[#D96C7C] hover:bg-[#D96C7C] hover:text-white rounded-full px-4 py-1.5 text-sm font-semibold transition"
+            className="bg-[#D96C7C] hover:bg-[#C55769] hover:scale-105 motion-reduce:hover:scale-100 text-white rounded-full px-4 py-1.5 text-sm font-bold shadow-[0_4px_14px_rgba(217,108,124,0.35)] transition"
           >
             {t.cta}
           </button>
@@ -341,7 +361,17 @@ export function BudgetBanner({ lang }: { lang: Lang }) {
               </form>
             )}
 
-            {stage === "results" && (
+            {stage === "results" && submitting && (
+              <div className="p-10 text-center text-sm text-[#79665E]">{t.submitting}</div>
+            )}
+
+            {stage === "results" && !submitting && formError && (
+              <div className="p-6 text-center">
+                <p className="text-sm font-medium text-[#C55769]">{formError}</p>
+              </div>
+            )}
+
+            {stage === "results" && !submitting && !formError && (
               <div className="p-6 space-y-4">
                 {recommendations.map((rec) => (
                   <div key={`${rec.category}-${rec.priceOptionId}`} className="border border-[#E8D8CC] rounded-2xl p-4">

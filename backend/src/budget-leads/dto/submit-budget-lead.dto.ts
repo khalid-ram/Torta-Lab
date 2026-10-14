@@ -1,20 +1,27 @@
 import { Transform } from 'class-transformer';
-import { Equals, IsNumber, IsString, IsUUID, Length, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
+// name/phone/privacyAcknowledged are optional here on purpose: when the
+// request carries a valid session, the controller resolves them from
+// the authenticated user instead and the service never looks at these
+// fields at all. The service enforces that they're present when there
+// is NO session — see budget-leads.service.ts.
 export class SubmitBudgetLeadDto {
+  @IsOptional()
   @Transform(trim)
   @IsString()
   @Length(1, 120)
-  name!: string;
+  name?: string;
 
   // Raw input as typed/selected by the customer — normalized and
   // validated server-side in the service, never trusted as-is.
+  @IsOptional()
   @Transform(trim)
   @IsString()
   @Length(1, 30)
-  phone!: string;
+  phone?: string;
 
   @IsNumber()
   @Min(200)
@@ -26,8 +33,7 @@ export class SubmitBudgetLeadDto {
   @IsUUID()
   idempotencyKey!: string;
 
-  // Must literally be true — the backend rejects a submission that
-  // doesn't explicitly carry this, never assumes consent.
-  @Equals(true)
-  privacyAcknowledged!: boolean;
+  @IsOptional()
+  @IsBoolean()
+  privacyAcknowledged?: boolean;
 }

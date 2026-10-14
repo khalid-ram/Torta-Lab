@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../supabase/supabase.service';
 import { normalizePhone, normalizeUsername } from '../common/utils/normalize';
@@ -107,6 +108,46 @@ export class AuthService {
 
     const { password_hash: _hash, is_active: _isActive, ...publicUser } = record;
     return this.issueSession(publicUser);
+  }
+
+  // Backend-initiated account creation for the budget-leads flow:
+  // a logged-out visitor who submits the budget form with a NEW
+  // Egyptian phone number gets a real account created and is signed in
+  // immediately, without ever seeing a password field. The password
+  // itself is random and never surfaced anywhere — the account exists
+  // so the customer stays recognized across visits, not so they can
+  // log in with a password later (no "set your password" flow exists
+  // yet; a genuine follow-up, not pretended away here).
+  //
+  // Callers MUST have already confirmed no existing user owns this
+  // phone — this method only ever creates, never reuses or logs into
+  // an existing account (doing otherwise from an unauthenticated public
+  // endpoint would let anyone take over any account just by typing its
+  // phone number into a public form).
+  async createAccountFromTrustedSource(input: { name: string; phone: string }): Promise<AuthResult> {
+    const username = input.phone.replace(/\D/g, '');
+    const randomPassword = randomBytes(24).toString('hex');
+    const passwordHash = await bcrypt.hash(randomPassword, BCRYPT_COST_FACTOR);
+    const client = this.supabaseService.getClient();
+
+    const { data: user, error } = await client
+      .from('users')
+      .insert({
+        name: input.name,
+        username,
+        phone: input.phone,
+        password_hash: passwordHash,
+        role: 'buyer',
+        is_active: true,
+      })
+      .select('id, name, username, phone, role')
+      .single();
+
+    if (error || !user) {
+      throw this.mapInsertError(error);
+    }
+
+    return this.issueSession(user as PublicUser);
   }
 
   async findUserById(id: string): Promise<AuthenticatedUser | null> {

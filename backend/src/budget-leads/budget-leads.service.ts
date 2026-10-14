@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, InternalServerErrorException, Logger }
 import { SupabaseService } from '../supabase/supabase.service';
 import { escapeIlikeTerm } from '../common/utils/postgrest-search';
 import { cairoDayStart, cairoDayEnd } from '../common/utils/cairo-time';
+import { AuthService, AuthenticatedUser } from '../auth/auth.service';
+import type { SessionTokens } from '../auth/session-cookies';
 import { normalizeAndValidatePhone } from './phone-validation';
 import { SubmitBudgetLeadDto } from './dto/submit-budget-lead.dto';
 import { ListBudgetLeadsQueryDto } from './dto/list-budget-leads-query.dto';
@@ -50,12 +52,39 @@ interface ExtraPriceRow {
 export class BudgetLeadsService {
   private readonly logger = new Logger(BudgetLeadsService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly authService: AuthService,
+  ) {}
 
-  async submit(dto: SubmitBudgetLeadDto): Promise<{ leadId: string; recommendations: Recommendation[] }> {
-    const phoneE164 = normalizeAndValidatePhone(dto.phone);
-    if (!phoneE164) {
-      throw new BadRequestException('Please enter a valid mobile number.');
+  async submit(
+    dto: SubmitBudgetLeadDto,
+    authenticatedUser: AuthenticatedUser | null,
+  ): Promise<{ leadId: string; recommendations: Recommendation[]; session: SessionTokens | null }> {
+    // Logged-in: use the account's own name/phone, never what the
+    // (possibly tampered) request body claims — skip the name/phone/
+    // privacy fields entirely, there's nothing left to ask for.
+    let name: string;
+    let phoneE164: string;
+    if (authenticatedUser) {
+      name = authenticatedUser.name;
+      const normalized = normalizeAndValidatePhone(authenticatedUser.phone);
+      // The account's own stored phone is already known-valid from
+      // signup; this only guards against a future format mismatch.
+      phoneE164 = normalized ?? authenticatedUser.phone;
+    } else {
+      if (!dto.name?.trim()) {
+        throw new BadRequestException('Please enter your name.');
+      }
+      if (dto.privacyAcknowledged !== true) {
+        throw new BadRequestException('Please acknowledge the privacy notice to continue.');
+      }
+      const normalized = dto.phone ? normalizeAndValidatePhone(dto.phone) : null;
+      if (!normalized) {
+        throw new BadRequestException('Please enter a valid mobile number.');
+      }
+      name = dto.name.trim();
+      phoneE164 = normalized;
     }
 
     const client = this.supabaseService.getClient();
@@ -73,15 +102,40 @@ export class BudgetLeadsService {
       throw new InternalServerErrorException('Unable to submit your request. Please try again.');
     }
     if (existing) {
-      return { leadId: existing.id, recommendations: existing.recommendations as Recommendation[] };
+      return { leadId: existing.id, recommendations: existing.recommendations as Recommendation[], session: null };
     }
 
-    // Never queries/touches public.users at any point — a submitted
-    // phone number is not proof of ownership and must never be able to
-    // reach an existing authenticated account.
+    // A real account is created (and signed in) only for a logged-out
+    // visitor whose phone number doesn't already belong to anyone — and
+    // the uniqueness check happens here, server-side, before any
+    // account is touched. This is the one thing that keeps this safe:
+    // an existing phone NEVER results in a sign-in, since a submitted
+    // phone number is not proof of ownership. Non-Egyptian numbers
+    // aren't auto-enrolled either — public.users only supports Egyptian
+    // phone numbers today (see common/utils/normalize.ts), a pre-existing
+    // constraint this flow doesn't attempt to widen.
+    let session: SessionTokens | null = null;
+    if (!authenticatedUser) {
+      const { data: existingAccount } = await client.from('users').select('id').eq('phone', phoneE164).maybeSingle();
+      if (!existingAccount && phoneE164.startsWith('+20')) {
+        try {
+          const created = await this.authService.createAccountFromTrustedSource({ name, phone: phoneE164 });
+          session = created.session;
+        } catch (err) {
+          // Non-fatal: the lead itself must still be captured even if
+          // account creation fails for some reason (e.g. a last-moment
+          // unique-constraint race) — log and continue as a prospect.
+          this.logger.error(`Failed to auto-create account for budget lead: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    }
+
+    // Never queries/touches public.users for the prospect/lead
+    // bookkeeping itself — that part always runs regardless of whether
+    // an account was linked above.
     const { data: prospect, error: prospectError } = await client
       .from('budget_prospects')
-      .upsert({ name: dto.name, phone_e164: phoneE164 }, { onConflict: 'phone_e164' })
+      .upsert({ name, phone_e164: phoneE164 }, { onConflict: 'phone_e164' })
       .select('id')
       .single();
     if (prospectError || !prospect) {
@@ -95,7 +149,7 @@ export class BudgetLeadsService {
       .from('budget_leads')
       .insert({
         prospect_id: prospect.id,
-        customer_name: dto.name,
+        customer_name: name,
         phone_e164: phoneE164,
         budget_egp: dto.budgetEgp,
         recommendations,
@@ -114,13 +168,13 @@ export class BudgetLeadsService {
           .select('id, recommendations')
           .eq('idempotency_key', dto.idempotencyKey)
           .maybeSingle();
-        if (raced) return { leadId: raced.id, recommendations: raced.recommendations as Recommendation[] };
+        if (raced) return { leadId: raced.id, recommendations: raced.recommendations as Recommendation[], session };
       }
       this.logger.error(`Failed to create budget lead: ${leadError.message}`);
       throw new InternalServerErrorException('Unable to submit your request. Please try again.');
     }
 
-    return { leadId: lead.id, recommendations };
+    return { leadId: lead.id, recommendations, session };
   }
 
   private async computeRecommendations(budgetEgp: number): Promise<Recommendation[]> {
